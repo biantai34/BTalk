@@ -1,4 +1,4 @@
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import {
   initializeMicrophone,
@@ -7,6 +7,14 @@ import {
 } from "../lib/recorder";
 import { transcribeAudio } from "../lib/transcriber";
 import { useHudState } from "./useHudState";
+import {
+  HOTKEY_PRESSED,
+  HOTKEY_RELEASED,
+  HOTKEY_TOGGLED,
+  HOTKEY_ERROR,
+} from "./useTauriEvents";
+import type { HotkeyEventPayload, HotkeyErrorPayload } from "../types/events";
+import { useSettingsStore } from "../stores/useSettingsStore";
 
 function log(message: string) {
   invoke("debug_log", { level: "info", message });
@@ -19,9 +27,15 @@ function logError(message: string) {
 export function useVoiceFlow() {
   const { state, transitionTo } = useHudState();
   let isRecording = false;
+  const unlistenFunctions: UnlistenFn[] = [];
 
   async function initialize() {
     log("useVoiceFlow: initializing...");
+
+    // Load saved hotkey settings and sync to Rust
+    const settingsStore = useSettingsStore();
+    await settingsStore.loadSettings();
+    log("useVoiceFlow: settings loaded");
 
     try {
       await initializeMicrophone();
@@ -31,20 +45,54 @@ export function useVoiceFlow() {
       logError(`useVoiceFlow: microphone init failed: ${msg}`);
     }
 
-    listen("fn-key-down", () => {
-      log("useVoiceFlow: received fn-key-down");
-      handleFnKeyDown();
-    });
+    // Hold mode: press to start, release to stop
+    unlistenFunctions.push(
+      await listen(HOTKEY_PRESSED, () => {
+        log(`useVoiceFlow: received ${HOTKEY_PRESSED}`);
+        handleStartRecording();
+      }),
+    );
 
-    listen("fn-key-up", () => {
-      log("useVoiceFlow: received fn-key-up");
-      handleFnKeyUp();
-    });
+    unlistenFunctions.push(
+      await listen(HOTKEY_RELEASED, () => {
+        log(`useVoiceFlow: received ${HOTKEY_RELEASED}`);
+        handleStopRecording();
+      }),
+    );
+
+    // Toggle mode: first press starts, second press stops
+    unlistenFunctions.push(
+      await listen<HotkeyEventPayload>(HOTKEY_TOGGLED, (event) => {
+        const { action } = event.payload;
+        log(`useVoiceFlow: received ${HOTKEY_TOGGLED} action=${action}`);
+        if (action === "start") {
+          handleStartRecording();
+        } else {
+          handleStopRecording();
+        }
+      }),
+    );
+
+    // Hotkey system error (e.g. missing Accessibility permission)
+    unlistenFunctions.push(
+      await listen<HotkeyErrorPayload>(HOTKEY_ERROR, (event) => {
+        const { message } = event.payload;
+        logError(`useVoiceFlow: hotkey error: ${message}`);
+        transitionTo("error", "請授予輔助使用權限");
+      }),
+    );
 
     log("useVoiceFlow: event listeners registered");
   }
 
-  async function handleFnKeyDown() {
+  function cleanup() {
+    for (const unlisten of unlistenFunctions) {
+      unlisten();
+    }
+    unlistenFunctions.length = 0;
+  }
+
+  async function handleStartRecording() {
     if (isRecording) return;
     isRecording = true;
 
@@ -61,7 +109,7 @@ export function useVoiceFlow() {
     }
   }
 
-  async function handleFnKeyUp() {
+  async function handleStopRecording() {
     if (!isRecording) return;
     isRecording = false;
 
@@ -98,5 +146,6 @@ export function useVoiceFlow() {
   return {
     state,
     initialize,
+    cleanup,
   };
 }

@@ -1,4 +1,4 @@
-import type { HudStatus } from "./index";
+import type { HudStatus, TriggerMode } from "./index";
 import type { TranscriptionRecord } from "./transcription";
 
 export interface VoiceFlowStateChangedPayload {
@@ -26,4 +26,14 @@ export interface SettingsUpdatedPayload {
 export interface VocabularyChangedPayload {
   action: "added" | "removed";
   term: string;
+}
+
+export interface HotkeyEventPayload {
+  mode: TriggerMode;
+  action: "start" | "stop";
+}
+
+export interface HotkeyErrorPayload {
+  error: string;
+  message: string;
 }

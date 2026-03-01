@@ -1,2 +1,2 @@
 pub mod clipboard_paste;
-pub mod fn_key_listener;
+pub mod hotkey_listener;

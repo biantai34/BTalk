@@ -82,6 +82,21 @@ fn debug_log(level: String, message: String) {
     }
 }
 
+#[command]
+fn update_hotkey_config(
+    app: tauri::AppHandle,
+    trigger_key: plugins::hotkey_listener::TriggerKey,
+    trigger_mode: plugins::hotkey_listener::TriggerMode,
+) -> Result<(), String> {
+    let state = app.state::<plugins::hotkey_listener::HotkeyListenerState>();
+    println!(
+        "[hotkey-listener] Config updated: key={:?}, mode={:?}",
+        trigger_key, trigger_mode
+    );
+    state.update_config(trigger_key, trigger_mode);
+    Ok(())
+}
+
 /// 計算視窗水平置中位置（像素座標）
 /// 回傳 x 座標（已乘以 scale_factor），用於 PhysicalPosition
 pub fn calculate_centered_window_x(
@@ -105,9 +120,10 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
-        .plugin(plugins::fn_key_listener::init())
+        .plugin(plugins::hotkey_listener::init())
         .invoke_handler(tauri::generate_handler![
             debug_log,
+            update_hotkey_config,
             plugins::clipboard_paste::paste_text
         ])
         .setup(|app| {
