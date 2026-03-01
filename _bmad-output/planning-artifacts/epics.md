@@ -188,6 +188,11 @@ This document provides the complete epic and story breakdown for whisper-poc, de
 使用者可在完整設定頁面配置快捷鍵（觸發鍵選擇+觸發模式），應用程式支援開機自啟動（可關閉）和自動更新（背景下載+提示安裝）。
 **FRs covered:** FR30, FR33, FR34
 
+**Infrastructure Notes (from Story 1.1 code review):**
+
+- **必須加入 `autostart:default` 和 `updater:default` 權限至 capabilities** — Story 1.1 已在 lib.rs 註冊 plugin，但 capabilities/default.json 尚未包含前端權限，需在對應 Story 中補上
+- **考慮拆分 capability 檔案** — 目前 HUD Window 和 Main Window 共用同一份 capabilities（包含 sql:default、store:default），但 HUD 不應有 DB 權限。建議建立 `hud.json` 和 `dashboard.json` 分別授權，符合最小權限原則
+
 ---
 
 ## Epic 1: 跨平台語音輸入基礎
@@ -237,9 +242,9 @@ So that 後續所有功能開發都能在穩定的架構基礎上進行。
 
 **Given** 雙視窗配置完成
 **When** 建立 Tauri Events 跨視窗通訊封裝（useTauriEvents.ts）
-**Then** 提供 emitToWindow(windowLabel, event, payload) 封裝方法
-**And** 提供 listenToEvent(event, handler) 訂閱方法
-**And** 事件命名遵循 {domain}:{action} kebab-case 規範
+**Then** Re-export Tauri `emitTo` 為 `emitToWindow`，保留原始 Tauri API 簽名
+**And** Re-export Tauri `listen` 為 `listenToEvent`，保留原始 Tauri API 簽名
+**And** 定義事件常數，命名遵循 {domain}:{action} kebab-case 規範
 
 ### Story 1.2: rdev 跨平台全域熱鍵系統
 
@@ -357,6 +362,13 @@ So that 我能在任何應用程式中用語音取代打字。
 **And** 發送 `voice-flow:state-changed` 事件 `{ status: 'error', message: '人類可讀錯誤訊息' }`
 **And** 不執行貼上動作
 **And** App 回到 idle 狀態，可立即重試
+
+**Migration Notes (from Story 1.1 implementation):**
+
+- **必須遷移 `useVoiceFlow.ts` → `useVoiceFlowStore`** — 現有 composable 直接管理 HUD 狀態，1.4 需將錄音/轉錄/貼上流程改為透過 Pinia store 驅動
+- **必須遷移 `useHudState.ts` auto-hide timer 邏輯至 store 或保留為 HUD-only composable** — `useHudState.transitionTo` 含 success/error 自動收起計時器和 showHud/hideHud 副作用，需決定這些邏輯歸 store 還是留在 HUD Window 的 composable
+- **必須統一 `TranscriptionResult` → `TranscriptionRecord`** — POC 的 `TranscriptionResult`（text + duration）應被 V2 的 `TranscriptionRecord` 取代，`transcriber.ts` 回傳型別需同步更新
+- **清理舊 composables** — 遷移完成後移除或重構 `useVoiceFlow.ts`、`useHudState.ts` 中被 store 取代的邏輯
 
 ### Story 1.5: HUD 狀態顯示與權限引導
 
