@@ -81,6 +81,18 @@ fn debug_log(level: String, message: String) {
     }
 }
 
+/// 計算視窗水平置中位置（像素座標）
+/// 回傳 x 座標（已乘以 scale_factor），用於 PhysicalPosition
+pub fn calculate_centered_window_x(
+    screen_width_physical: u32,
+    scale_factor: f64,
+    window_width_logical: f64,
+) -> i32 {
+    let screen_width_logical = screen_width_physical as f64 / scale_factor;
+    let x_logical = (screen_width_logical - window_width_logical) / 2.0;
+    (x_logical * scale_factor) as i32
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -115,13 +127,13 @@ pub fn run() {
 
                 if let Ok(monitor) = window.current_monitor() {
                     if let Some(monitor) = monitor {
-                        let screen_width = monitor.size().width as f64 / monitor.scale_factor();
                         let window_width = 400.0;
-                        let x = (screen_width - window_width) / 2.0;
-                        let _ = window.set_position(tauri::PhysicalPosition::new(
-                            (x * monitor.scale_factor()) as i32,
-                            0,
-                        ));
+                        let x = calculate_centered_window_x(
+                            monitor.size().width,
+                            monitor.scale_factor(),
+                            window_width,
+                        );
+                        let _ = window.set_position(tauri::PhysicalPosition::new(x, 0));
                     }
                 }
             }
@@ -130,4 +142,55 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ============================================================
+    // calculate_centered_window_x 測試
+    // ============================================================
+
+    #[test]
+    fn test_centered_window_x_standard_1080p() {
+        // 1920px 螢幕、scale_factor=1.0、視窗寬 400px
+        // 期望 x = (1920 - 400) / 2 = 760
+        let x = calculate_centered_window_x(1920, 1.0, 400.0);
+        assert_eq!(x, 760);
+    }
+
+    #[test]
+    fn test_centered_window_x_retina_display() {
+        // Retina: physical=2560, scale=2.0 → logical=1280
+        // x_logical = (1280 - 400) / 2 = 440
+        // x_physical = 440 * 2.0 = 880
+        let x = calculate_centered_window_x(2560, 2.0, 400.0);
+        assert_eq!(x, 880);
+    }
+
+    #[test]
+    fn test_centered_window_x_fractional_scale() {
+        // 150% 縮放: physical=2880, scale=1.5 → logical=1920
+        // x_logical = (1920 - 400) / 2 = 760
+        // x_physical = 760 * 1.5 = 1140
+        let x = calculate_centered_window_x(2880, 1.5, 400.0);
+        assert_eq!(x, 1140);
+    }
+
+    #[test]
+    fn test_centered_window_x_window_equals_screen() {
+        // 視窗與螢幕同寬時，x 應為 0
+        let x = calculate_centered_window_x(400, 1.0, 400.0);
+        assert_eq!(x, 0);
+    }
+
+    #[test]
+    fn test_centered_window_x_4k_display() {
+        // 4K: physical=3840, scale=2.0 → logical=1920
+        // x_logical = (1920 - 400) / 2 = 760
+        // x_physical = 760 * 2.0 = 1520
+        let x = calculate_centered_window_x(3840, 2.0, 400.0);
+        assert_eq!(x, 1520);
+    }
 }

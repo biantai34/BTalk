@@ -91,3 +91,94 @@ pub fn paste_text<R: Runtime>(app: AppHandle<R>, text: String) -> Result<(), Cli
     println!("[clipboard-paste] Done (clipboard NOT restored)");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ============================================================
+    // ClipboardError Display 格式化測試
+    // ============================================================
+
+    #[test]
+    fn test_clipboard_access_error_display() {
+        let error = ClipboardError::ClipboardAccess("permission denied".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Clipboard access failed: permission denied"
+        );
+    }
+
+    #[test]
+    fn test_keyboard_simulation_error_display() {
+        let error = ClipboardError::KeyboardSimulation("CGEvent failed".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Keyboard simulation failed: CGEvent failed"
+        );
+    }
+
+    #[test]
+    fn test_clipboard_access_error_display_empty_message() {
+        let error = ClipboardError::ClipboardAccess(String::new());
+        assert_eq!(error.to_string(), "Clipboard access failed: ");
+    }
+
+    #[test]
+    fn test_keyboard_simulation_error_display_unicode() {
+        let error = ClipboardError::KeyboardSimulation("鍵盤模擬失敗".to_string());
+        assert_eq!(
+            error.to_string(),
+            "Keyboard simulation failed: 鍵盤模擬失敗"
+        );
+    }
+
+    // ============================================================
+    // ClipboardError Serialize 測試
+    // ============================================================
+
+    #[test]
+    fn test_clipboard_access_error_serialize() {
+        let error = ClipboardError::ClipboardAccess("no clipboard".to_string());
+        let json = serde_json::to_string(&error).unwrap();
+        assert_eq!(json, "\"Clipboard access failed: no clipboard\"");
+    }
+
+    #[test]
+    fn test_keyboard_simulation_error_serialize() {
+        let error = ClipboardError::KeyboardSimulation("event creation failed".to_string());
+        let json = serde_json::to_string(&error).unwrap();
+        assert_eq!(
+            json,
+            "\"Keyboard simulation failed: event creation failed\""
+        );
+    }
+
+    #[test]
+    fn test_error_serialize_roundtrip_is_string() {
+        // ClipboardError 序列化後應為純字串，非物件
+        let error = ClipboardError::ClipboardAccess("test".to_string());
+        let value: serde_json::Value = serde_json::to_value(&error).unwrap();
+        assert!(value.is_string(), "序列化結果應為 JSON 字串，非物件");
+    }
+
+    // ============================================================
+    // ClipboardError Debug trait 測試
+    // ============================================================
+
+    #[test]
+    fn test_clipboard_error_debug_format() {
+        let error = ClipboardError::ClipboardAccess("test".to_string());
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("ClipboardAccess"));
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_keyboard_error_debug_format() {
+        let error = ClipboardError::KeyboardSimulation("sim fail".to_string());
+        let debug_str = format!("{:?}", error);
+        assert!(debug_str.contains("KeyboardSimulation"));
+        assert!(debug_str.contains("sim fail"));
+    }
+}
