@@ -5,6 +5,7 @@ extern crate objc;
 mod plugins;
 
 use tauri::{
+    AppHandle,
     command,
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
@@ -109,6 +110,13 @@ pub fn calculate_centered_window_x(
     (x_logical * scale_factor) as i32
 }
 
+fn show_main_window(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main-window") {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -127,13 +135,18 @@ pub fn run() {
             plugins::clipboard_paste::paste_text
         ])
         .setup(|app| {
+            let open_dashboard_item =
+                MenuItem::with_id(app, "open-dashboard", "開啟 Dashboard", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit SayIt", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&quit_item])?;
+            let menu = Menu::with_items(app, &[&open_dashboard_item, &quit_item])?;
 
             TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip("SayIt")
                 .on_menu_event(|app, event| match event.id.as_ref() {
+                    "open-dashboard" => {
+                        show_main_window(app);
+                    }
                     "quit" => {
                         app.exit(0);
                     }

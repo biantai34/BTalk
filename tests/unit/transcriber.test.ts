@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { API_KEY_MISSING_ERROR } from "../../src/lib/errorUtils";
 
 // ---------------------------------------------------------------------------
 // Mock: @tauri-apps/plugin-http
@@ -8,35 +9,15 @@ vi.mock("@tauri-apps/plugin-http", () => ({
   fetch: mockFetch,
 }));
 
-// ---------------------------------------------------------------------------
-// Mock: import.meta.env
-// ---------------------------------------------------------------------------
-const originalEnv = { ...import.meta.env };
-
-function setEnvVar(key: string, value: string | undefined) {
-  if (value === undefined) {
-    delete (import.meta.env as Record<string, string | undefined>)[key];
-  } else {
-    (import.meta.env as Record<string, string>)[key] = value;
-  }
-}
+const TEST_API_KEY = "test-api-key-123";
 
 describe("transcriber.ts", () => {
   beforeEach(() => {
     vi.resetModules();
     mockFetch.mockReset();
-    // Set a default API key
-    setEnvVar("VITE_GROQ_API_KEY", "test-api-key-123");
   });
 
   afterEach(() => {
-    // Restore original env
-    Object.keys(import.meta.env).forEach((key) => {
-      if (!(key in originalEnv)) {
-        delete (import.meta.env as Record<string, string | undefined>)[key];
-      }
-    });
-    Object.assign(import.meta.env, originalEnv);
     vi.restoreAllMocks();
   });
 
@@ -45,29 +26,21 @@ describe("transcriber.ts", () => {
   // ========================================================================
 
   describe("API key validation", () => {
-    it("[P0] should throw if VITE_GROQ_API_KEY is not set", async () => {
-      // Given: no API key in environment
-      setEnvVar("VITE_GROQ_API_KEY", undefined);
-
+    it("[P0] should throw if API key is whitespace-only", async () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
       const audioBlob = new Blob(["audio-data"], { type: "audio/webm" });
 
-      // When/Then: transcription should throw about missing key
-      await expect(transcribeAudio(audioBlob)).rejects.toThrow(
-        "VITE_GROQ_API_KEY is not set in .env",
+      await expect(transcribeAudio(audioBlob, "  ")).rejects.toThrow(
+        API_KEY_MISSING_ERROR,
       );
     });
 
-    it("[P0] should throw if VITE_GROQ_API_KEY is empty string", async () => {
-      // Given: empty API key
-      setEnvVar("VITE_GROQ_API_KEY", "");
-
+    it("[P0] should throw if API key is empty string", async () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
       const audioBlob = new Blob(["audio-data"], { type: "audio/webm" });
 
-      // When/Then: transcription should throw about missing key
-      await expect(transcribeAudio(audioBlob)).rejects.toThrow(
-        "VITE_GROQ_API_KEY is not set in .env",
+      await expect(transcribeAudio(audioBlob, "")).rejects.toThrow(
+        API_KEY_MISSING_ERROR,
       );
     });
   });
@@ -100,7 +73,7 @@ describe("transcriber.ts", () => {
         const { transcribeAudio } = await import("../../src/lib/transcriber");
 
         // When: transcribing audio
-        await transcribeAudio(audioBlob);
+        await transcribeAudio(audioBlob, TEST_API_KEY);
 
         // Then: fetch should be called with FormData containing the correct filename
         const callArgs = mockFetch.mock.calls[0];
@@ -127,7 +100,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When: transcribing
-      await transcribeAudio(audioBlob);
+      await transcribeAudio(audioBlob, TEST_API_KEY);
 
       // Then: FormData should contain all expected fields
       const callArgs = mockFetch.mock.calls[0];
@@ -140,7 +113,6 @@ describe("transcriber.ts", () => {
 
     it("[P0] should send Authorization header with Bearer token", async () => {
       // Given: API key is set
-      setEnvVar("VITE_GROQ_API_KEY", "my-secret-key");
       const audioBlob = new Blob(["audio"], { type: "audio/webm" });
       mockFetch.mockResolvedValue({
         ok: true,
@@ -150,7 +122,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When: transcribing
-      await transcribeAudio(audioBlob);
+      await transcribeAudio(audioBlob, "my-secret-key");
 
       // Then: Authorization header should be set
       const callArgs = mockFetch.mock.calls[0];
@@ -168,7 +140,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When: transcribing
-      await transcribeAudio(audioBlob);
+      await transcribeAudio(audioBlob, TEST_API_KEY);
 
       // Then: should call the correct URL with POST
       const callArgs = mockFetch.mock.calls[0];
@@ -196,7 +168,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When/Then: should throw with status and body
-      await expect(transcribeAudio(audioBlob)).rejects.toThrow(
+      await expect(transcribeAudio(audioBlob, TEST_API_KEY)).rejects.toThrow(
         'Groq API error (401): {"error":"Invalid API key"}',
       );
     });
@@ -213,7 +185,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When/Then: should throw with status
-      await expect(transcribeAudio(audioBlob)).rejects.toThrow(
+      await expect(transcribeAudio(audioBlob, TEST_API_KEY)).rejects.toThrow(
         "Groq API error (500): Internal Server Error",
       );
     });
@@ -226,7 +198,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When/Then: error should propagate
-      await expect(transcribeAudio(audioBlob)).rejects.toThrow(
+      await expect(transcribeAudio(audioBlob, TEST_API_KEY)).rejects.toThrow(
         "Network request failed",
       );
     });
@@ -248,7 +220,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When: transcribing
-      const result = await transcribeAudio(audioBlob);
+      const result = await transcribeAudio(audioBlob, TEST_API_KEY);
 
       // Then: text should be trimmed
       expect(result.text).toBe("Hello World");
@@ -268,7 +240,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When: transcribing
-      const result = await transcribeAudio(audioBlob);
+      const result = await transcribeAudio(audioBlob, TEST_API_KEY);
 
       // Then: text should be empty after trim
       expect(result.text).toBe("");
@@ -295,7 +267,7 @@ describe("transcriber.ts", () => {
       const { transcribeAudio } = await import("../../src/lib/transcriber");
 
       // When: transcribing
-      const result = await transcribeAudio(audioBlob);
+      const result = await transcribeAudio(audioBlob, TEST_API_KEY);
 
       // Then: duration should be the difference
       expect(result.duration).toBe(1500);

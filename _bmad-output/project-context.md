@@ -44,7 +44,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### V2 Planned Dependencies (尚未安裝)
 
-- Rust: tauri-plugin-sql (sqlite), tauri-plugin-autostart, tauri-plugin-updater, tauri-plugin-store（rdev 已取消，改用 OS-native API）
+- Rust: tauri-plugin-sql (sqlite), tauri-plugin-autostart, tauri-plugin-updater, tauri-plugin-store（明文 JSON 本地儲存；rdev 已取消，改用 OS-native API）
 - JS: vue-router 5.x, pinia 3.x, 對應 tauri plugin 前端 bindings
 
 ### External APIs
@@ -187,7 +187,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **❌ 瀏覽器原生 `fetch`** — 必須用 `@tauri-apps/plugin-http` 的 `fetch`，否則會被 CSP 擋住或遇 CORS
 - **❌ Options API** — 禁止 `data()`, `methods:`, `computed:` 物件語法，一律 Composition API
 - **❌ views 直接呼叫 lib** — 頁面元件不可直接 import `lib/` 下的模組，必須透過 Pinia store
-- **❌ SQLite 存 API Key** — API Key 只存在 `tauri-plugin-store`（加密），絕不進 SQLite
+- **❌ SQLite 存 API Key** — API Key 只存在 `tauri-plugin-store`（明文 JSON，安全依賴 OS 檔案權限），絕不進 SQLite
 - **❌ 跨平台程式碼混合** — macOS 和 Windows 特定邏輯不可在同一函式中，必須用 `#[cfg]` 隔離
 - **❌ 在元件中直接執行 SQL** — SQLite 操作只從 Pinia store actions 發起
 
@@ -208,7 +208,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 #### 安全規則
 
 - **CSP 硬限制** — `connect-src 'self' https://api.groq.com`，新增外部 API 必須更新 `tauri.conf.json`
-- **API Key 不出本地** — 只在本機 tauri-plugin-store 中，不上傳、不寫入日誌
+- **API Key 不出本地** — 只在本機 tauri-plugin-store 中（明文 JSON，OS 檔案權限保護），不上傳、不寫入日誌、不透過 Tauri Events 傳播
 - **macOS 權限** — Accessibility 權限是全域熱鍵監聽的前提，`hotkey_listener.rs`（CGEventTap）會檢查
 
 #### 效能注意事項

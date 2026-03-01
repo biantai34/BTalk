@@ -1,5 +1,6 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import type { TranscriptionResult } from "../types";
+import { API_KEY_MISSING_ERROR } from "./errorUtils";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
@@ -13,10 +14,10 @@ function getFileExtensionFromMime(mimeType: string): string {
 
 export async function transcribeAudio(
   audioBlob: Blob,
+  apiKey: string,
 ): Promise<TranscriptionResult> {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) {
-    throw new Error("VITE_GROQ_API_KEY is not set in .env");
+  if (apiKey.trim() === "") {
+    throw new Error(API_KEY_MISSING_ERROR);
   }
 
   const startTime = performance.now();

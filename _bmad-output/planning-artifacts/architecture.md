@@ -48,7 +48,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 |------|---------|---------|
 | 效能 | E2E < 3s（含 AI）、< 1.5s（跳過 AI）、idle < 100MB | API 呼叫需非同步、HUD 動畫不能阻塞主流程 |
 | 效能 | HUD 狀態轉換 < 100ms、SQLite 查詢 < 200ms | 前端狀態管理需高效、SQLite 需適當索引 |
-| 安全 | API Key 使用 OS 原生安全儲存 | macOS Keychain / Windows Credential Manager 整合 |
+| 安全 | API Key 本地儲存，不外洩 | tauri-plugin-store 明文 JSON，安全依賴 OS 檔案系統權限 |
 | 整合 | Groq API timeout 5 秒，超時 fallback 原始文字 | 需 timeout + 降級策略的服務層 |
 | 可靠 | 系統可用率 > 99%、SQLite WAL 模式 | 錯誤隔離，API 失敗不影響 App 穩定性 |
 
@@ -88,7 +88,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 1. **跨平台行為抽象** — OS 原生鍵盤 API（macOS CGEventTap / Windows SetWindowsHookExW）的事件模型差異（鍵碼對應、權限需求、事件觸發頻率）需要統一的抽象層
 2. **雙視窗狀態同步** — HUD Window 和 Main Window 需共享應用程式狀態（錄音狀態、設定變更、歷史更新），Tauri Events 或 Pinia 跨視窗同步是關鍵決策點
 3. **API 錯誤降級** — Groq API 的 timeout/失敗需要一致的降級策略：Whisper 失敗 → 顯示錯誤；LLM 超時 → 跳過 AI 直接貼上原始文字
-4. **安全金鑰儲存** — API Key 不能明文存放，需整合 OS 原生 credential store（macOS Keychain / Windows Credential Manager）
+4. **安全金鑰儲存** — API Key 使用 tauri-plugin-store 儲存於 App Data 目錄（明文 JSON），安全依賴 OS 檔案系統權限，不暴露於日誌或網路
 5. **資料持久化層** — SQLite 需統一的存取模式（Tauri Commands 封裝），歷史記錄和詞彙字典共用同一資料庫但各自的 table
 
 ## Starter Template Evaluation
@@ -125,7 +125,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 | `tauri-plugin-sql` | 2.3.1 | SQLite 資料庫（歷史記錄 + 詞彙字典） | `sqlite` |
 | `tauri-plugin-autostart` | 2.5.1 | 開機自啟動 | — |
 | `tauri-plugin-updater` | ~2.2.0 | 自動更新 | — |
-| `tauri-plugin-store` | ~2.x | API Key 加密本地儲存 | — |
+| `tauri-plugin-store` | ~2.x | API Key 本地儲存（明文 JSON） | — |
 
 **JavaScript (pnpm) — 新增：**
 
@@ -136,7 +136,7 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 | `@tauri-apps/plugin-sql` | ~2.3.1 | SQLite 前端 bindings |
 | `@tauri-apps/plugin-autostart` | ~2.5.1 | 開機自啟動前端 bindings |
 | `@tauri-apps/plugin-updater` | ~2.2.0 | 自動更新前端 bindings |
-| `@tauri-apps/plugin-store` | ~2.x | 加密儲存前端 bindings |
+| `@tauri-apps/plugin-store` | ~2.x | 本地儲存前端 bindings |
 
 ### Architectural Decisions Provided by Existing Stack
 
@@ -225,11 +225,12 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 ### Security
 
-**決策：tauri-plugin-store 加密儲存 API Key**
+**決策：tauri-plugin-store 本地儲存 API Key**
 
-- 使用 tauri-plugin-store 將 API Key 加密儲存於本地
-- 不整合 OS 原生 Keychain/Credential Manager — 內部效率工具，加密本地儲存安全等級已足夠
+- 使用 tauri-plugin-store 將 API Key 儲存於本地 App Data 目錄（明文 JSON）
+- 不整合 OS 原生 Keychain/Credential Manager — 內部效率工具，安全依賴 OS 檔案系統權限已足夠
 - API Key 不進入 SQLite，獨立於 store 檔案中
+- API Key 不暴露於日誌、網路傳輸或 Tauri Events
 
 ### API & Communication Patterns
 
@@ -627,7 +628,7 @@ sayit/
 | 儲存 | 內容 | 存取方式 | 存取者 |
 |------|------|---------|--------|
 | SQLite (app.db) | transcriptions, vocabulary, schema_version | tauri-plugin-sql 前端直接 SQL | Pinia store actions only |
-| tauri-plugin-store (encrypted) | groqApiKey, hotkeyConfig, aiPrompt, triggerMode | plugin-store API | useSettingsStore only |
+| tauri-plugin-store (plaintext JSON) | groqApiKey, hotkeyConfig, aiPrompt, triggerMode | plugin-store API | useSettingsStore only |
 
 - SQLite 與 Store 是獨立的資料邊界 — API Key 不進 SQLite
 - SQLite 存取：只從 Pinia store actions 發起，不在 Vue components 直接操作
@@ -726,7 +727,7 @@ pnpm tauri build  # 1. Vite 打包前端 → dist/
 - Vue 3.5.29 + Pinia 3.x + Vue Router 5.0.3 生態相容
 - arboard 3.6.1 為獨立 Rust crate，無衝突（enigo 已移除，rdev 改用 OS-native API 取代）
 - 前端直接呼叫 Groq API 的決策與 CSP 白名單一致
-- tauri-plugin-store 加密儲存與 SQLite 資料層分離，職責清晰
+- tauri-plugin-store 本地儲存與 SQLite 資料層分離，職責清晰
 
 **Pattern Consistency：**
 - 命名慣例在所有層級一致：Rust snake_case → TS camelCase → Vue PascalCase
@@ -764,7 +765,7 @@ pnpm tauri build  # 1. Vite 打包前端 → dist/
 | Memory < 100MB | idle 狀態 | 輕量 Tauri + WebView 架構 |
 | HUD < 100ms | 狀態轉換 | Tauri Events 驅動，非輪詢 |
 | SQLite < 200ms | 查詢回應 | 索引 idx_transcriptions_timestamp, idx_transcriptions_created_at |
-| API Key 加密 | 不明文儲存 | tauri-plugin-store 加密儲存 |
+| API Key 安全 | 不外洩至日誌或網路 | tauri-plugin-store 本地儲存（明文 JSON，OS 檔案權限保護） |
 | 資料本地 | 不上傳第三方 | SQLite 本地 + HTTPS 僅至 Groq |
 | 可用率 > 99% | 排除網路問題 | 錯誤隔離，API 失敗不影響 App |
 | WAL 模式 | 寫入安全 | SQLite WAL mode |

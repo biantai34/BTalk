@@ -87,7 +87,7 @@ This document provides the complete epic and story breakdown for SayIt, decompos
 - NFR7: SQLite 查詢回應 < 200 ms（歷史搜尋、Dashboard 統計計算）
 
 **安全**
-- NFR8: API Key 使用加密儲存（tauri-plugin-store），不得明文儲存
+- NFR8: API Key 使用 tauri-plugin-store 儲存於 App Data 目錄（明文 JSON），不暴露於日誌或網路，安全依賴 OS 檔案系統權限
 - NFR9: 轉錄資料僅存於本地 SQLite，不上傳至任何第三方服務
 - NFR10: 所有 Groq API 請求透過 HTTPS
 - NFR11: 剪貼簿內容作為 AI 上下文注入時，僅傳送至使用者自行配置的 Groq API
@@ -111,7 +111,7 @@ This document provides the complete epic and story breakdown for SayIt, decompos
 - 雙視窗架構：HUD Window（App.vue）+ Main Window（MainApp.vue），需在 tauri.conf.json 定義
 - Tauri Events 跨視窗同步：使用 `emitTo(windowLabel, event, payload)` 跨視窗廣播關鍵狀態變更
 - 前端直接 SQL：tauri-plugin-sql 前端直接執行 SQL，資料存取邏輯集中在 Pinia stores 的 actions 中
-- API Key 儲存：tauri-plugin-store 加密儲存，不整合 OS 原生 Keychain
+- API Key 儲存：tauri-plugin-store 本地儲存（明文 JSON），不整合 OS 原生 Keychain，安全依賴 OS 檔案系統權限
 - 前端直接呼叫 Groq API：transcriber.ts + enhancer.ts 直接呼叫，CSP 限制 connect-src 至 self + https://api.groq.com
 - 錯誤處理模式：Service 層拋出有意義錯誤 → Store 層 catch + 降級 + 使用者提示
 - SQLite Schema：transcriptions / vocabulary / schema_version 三張表，WAL 模式
@@ -291,7 +291,7 @@ So that 我的 API Key 不會外洩，且能方便地存取 App 設定。
 
 **Given** tauri-plugin-store 已安裝
 **When** 使用者在 SettingsView 的 API Key 輸入框中輸入 API Key 並儲存
-**Then** API Key 透過 tauri-plugin-store 加密儲存於本地
+**Then** API Key 透過 tauri-plugin-store 儲存於本地 App Data 目錄
 **And** API Key 不存入 SQLite 資料庫
 **And** 輸入框以密碼模式顯示（遮罩）
 **And** useSettingsStore 更新 hasApiKey 狀態
@@ -302,7 +302,7 @@ So that 我的 API Key 不會外洩，且能方便地存取 App 設定。
 **And** API Key 僅在記憶體中供 transcriber.ts 和 enhancer.ts 使用
 
 **Given** App 正在執行
-**When** 使用者點擊 System Tray 圖示
+**When** 使用者透過 System Tray 右鍵選單選擇「開啟 Dashboard」
 **Then** Main Window 開啟並顯示 Dashboard 頁面
 **And** 若 Main Window 已開啟，則將其帶至前景
 
