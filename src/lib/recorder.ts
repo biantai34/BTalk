@@ -1,6 +1,15 @@
+import {
+  DEFAULT_ANALYSER_CONFIG,
+  type AudioAnalyserHandle,
+} from "../types/audio";
+
 let mediaStream: MediaStream | null = null;
 let mediaRecorder: MediaRecorder | null = null;
 let audioChunkList: Blob[] = [];
+
+let audioContext: AudioContext | null = null;
+let analyserNode: AnalyserNode | null = null;
+let frequencyDataBuffer: Float32Array<ArrayBuffer> | null = null;
 
 function detectSupportedMimeType(): string {
   const candidateList = [
@@ -49,6 +58,47 @@ export function startRecording(): void {
   };
 
   mediaRecorder.start();
+}
+
+export function createAudioAnalyser(): AudioAnalyserHandle {
+  if (!mediaStream) {
+    throw new Error(
+      "Microphone not initialized. Call initializeMicrophone() first.",
+    );
+  }
+
+  audioContext = new AudioContext();
+  const source = audioContext.createMediaStreamSource(mediaStream);
+  analyserNode = audioContext.createAnalyser();
+  analyserNode.fftSize = DEFAULT_ANALYSER_CONFIG.fftSize;
+  analyserNode.smoothingTimeConstant =
+    DEFAULT_ANALYSER_CONFIG.smoothingTimeConstant;
+
+  source.connect(analyserNode);
+  frequencyDataBuffer = new Float32Array(
+    analyserNode.frequencyBinCount,
+  ) as Float32Array<ArrayBuffer>;
+
+  return {
+    getFrequencyData(): Float32Array {
+      if (analyserNode && frequencyDataBuffer) {
+        analyserNode.getFloatFrequencyData(frequencyDataBuffer);
+      }
+      return frequencyDataBuffer ?? new Float32Array(0);
+    },
+    destroy(): void {
+      destroyAudioAnalyser();
+    },
+  };
+}
+
+export function destroyAudioAnalyser(): void {
+  if (audioContext) {
+    void audioContext.close();
+    audioContext = null;
+  }
+  analyserNode = null;
+  frequencyDataBuffer = null;
 }
 
 export function stopRecording(): Promise<Blob> {

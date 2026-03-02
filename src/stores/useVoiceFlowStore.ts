@@ -13,7 +13,10 @@ import {
   initializeMicrophone,
   startRecording,
   stopRecording,
+  createAudioAnalyser,
+  destroyAudioAnalyser,
 } from "../lib/recorder";
+import type { AudioAnalyserHandle } from "../types/audio";
 import { transcribeAudio } from "../lib/transcriber";
 import {
   HOTKEY_ERROR,
@@ -42,7 +45,10 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   const status = ref<HudStatus>("idle");
   const message = ref("");
   const isRecording = ref<boolean>(false);
+  const analyserHandle = ref<AudioAnalyserHandle | null>(null);
+  const recordingElapsedSeconds = ref<number>(0);
   let recordingStartTime = 0;
+  let elapsedTimer: ReturnType<typeof setInterval> | null = null;
   let cachedAppWindow: ReturnType<typeof getCurrentWindow> | null = null;
   const unlistenFunctions: UnlistenFn[] = [];
   let autoHideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -65,6 +71,21 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       clearTimeout(autoHideTimer);
       autoHideTimer = null;
     }
+  }
+
+  function startElapsedTimer() {
+    recordingElapsedSeconds.value = 0;
+    elapsedTimer = setInterval(() => {
+      recordingElapsedSeconds.value += 1;
+    }, 1000);
+  }
+
+  function stopElapsedTimer() {
+    if (elapsedTimer) {
+      clearInterval(elapsedTimer);
+      elapsedTimer = null;
+    }
+    recordingElapsedSeconds.value = 0;
   }
 
   function emitVoiceFlowStateChanged(
@@ -129,11 +150,15 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     }
 
     if (nextStatus === "error") {
-      showHud().catch((err) =>
-        writeErrorLog(
-          `useVoiceFlowStore: showHud failed: ${extractErrorMessage(err)}`,
-        ),
-      );
+      showHud()
+        .then(async () => {
+          await getAppWindow().setIgnoreCursorEvents(false);
+        })
+        .catch((err) =>
+          writeErrorLog(
+            `useVoiceFlowStore: showHud/enableCursor failed: ${extractErrorMessage(err)}`,
+          ),
+        );
       autoHideTimer = setTimeout(() => {
         transitionTo("idle");
       }, ERROR_DISPLAY_DURATION_MS);
@@ -154,6 +179,14 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     try {
       await initializeMicrophone();
       startRecording();
+      try {
+        analyserHandle.value = createAudioAnalyser();
+      } catch (analyserError) {
+        writeErrorLog(
+          `useVoiceFlowStore: audio analyser creation failed (non-blocking): ${extractErrorMessage(analyserError)}`,
+        );
+      }
+      startElapsedTimer();
       transitionTo("recording", RECORDING_MESSAGE);
       writeInfoLog("useVoiceFlowStore: recording started");
     } catch (error) {
@@ -168,6 +201,10 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
   async function handleStopRecording() {
     if (!isRecording.value) return;
+
+    stopElapsedTimer();
+    destroyAudioAnalyser();
+    analyserHandle.value = null;
 
     try {
       transitionTo("transcribing", TRANSCRIBING_MESSAGE);
@@ -199,7 +236,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         return;
       }
 
-      transitionTo("idle");
+      await hideHud();
       await invoke("paste_text", { text: result.rawText });
       isRecording.value = false;
       transitionTo("success", PASTE_SUCCESS_MESSAGE);
@@ -279,6 +316,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
   function cleanup() {
     clearAutoHideTimer();
+    stopElapsedTimer();
+    destroyAudioAnalyser();
+    analyserHandle.value = null;
 
     for (const unlisten of unlistenFunctions) {
       unlisten();
@@ -289,6 +329,8 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   return {
     status,
     message,
+    analyserHandle,
+    recordingElapsedSeconds,
     initialize,
     cleanup,
     transitionTo,

@@ -91,6 +91,11 @@ vi.mock("../../src/lib/recorder", () => ({
   initializeMicrophone: mockInitializeMicrophone,
   startRecording: mockStartRecording,
   stopRecording: mockStopRecording,
+  createAudioAnalyser: vi.fn(() => ({
+    getFrequencyData: vi.fn(() => new Float32Array(32)),
+    destroy: vi.fn(),
+  })),
+  destroyAudioAnalyser: vi.fn(),
 }));
 
 vi.mock("../../src/lib/transcriber", () => ({
@@ -101,6 +106,7 @@ vi.mock("../../src/stores/useSettingsStore", () => ({
   useSettingsStore: () => ({
     loadSettings: mockLoadSettings,
     getApiKey: () => mockSettingsState.apiKey,
+    refreshApiKey: vi.fn().mockResolvedValue(undefined),
   }),
 }));
 
@@ -216,7 +222,7 @@ describe("useVoiceFlowStore", () => {
     });
   });
 
-  it("[P0] HOTKEY_RELEASED 應完成 錄音→idle→貼上→success 並廣播事件", async () => {
+  it("[P0] HOTKEY_RELEASED 應完成 錄音→轉錄→貼上→success 並廣播事件", async () => {
     const store = useVoiceFlowStore();
     await store.initialize();
 
@@ -239,11 +245,7 @@ describe("useVoiceFlowStore", () => {
     );
     expect(store.status).toBe("success");
     expect(store.message).toBe("已貼上 ✓");
-    // 驗證貼上前有走 idle 轉換
-    expect(mockEmit).toHaveBeenCalledWith("voice-flow:state-changed", {
-      status: "idle",
-      message: "",
-    });
+    // 貼上前隱藏視窗但不經過 idle，直接進 success
     expect(mockEmit).toHaveBeenCalledWith("voice-flow:state-changed", {
       status: "success",
       message: "已貼上 ✓",
