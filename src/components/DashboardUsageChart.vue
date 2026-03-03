@@ -37,57 +37,50 @@ function formatDateLabel(d: number): string {
 </script>
 
 <template>
-  <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-    <div class="mb-4">
-      <h2 class="text-lg font-semibold text-white">每日使用趨勢</h2>
-      <p class="text-sm text-zinc-400">最近 30 天</p>
-    </div>
-
-    <div v-if="props.data.length === 0" class="rounded-lg border border-dashed border-zinc-600 px-4 py-8 text-center text-zinc-400">
-      尚無使用記錄
-    </div>
-
-    <ChartContainer v-else :config="chartConfig" class="aspect-auto h-[200px] w-full" :cursor="false">
-      <VisXYContainer
-        :data="props.data"
-        :svg-defs="svgDefs"
-        :margin="{ left: -40 }"
-      >
-        <VisArea
-          :x="xAccessor"
-          :y="yAccessor"
-          :color="fillColor"
-          :opacity="0.6"
-        />
-        <VisLine
-          :x="xAccessor"
-          :y="yAccessor"
-          :color="lineColor"
-          :line-width="1.5"
-        />
-        <VisAxis
-          type="x"
-          :x="xAccessor"
-          :tick-line="false"
-          :domain-line="false"
-          :grid-line="false"
-          :num-ticks="6"
-          :tick-format="formatDateLabel"
-        />
-        <VisAxis
-          type="y"
-          :num-ticks="3"
-          :tick-line="false"
-          :domain-line="false"
-        />
-        <ChartTooltip />
-        <ChartCrosshair
-          :template="componentToString(chartConfig, ChartTooltipContent, {
-            labelFormatter: (d) => formatDateLabel(d as number),
-          })"
-          :color="() => chartConfig.count.color"
-        />
-      </VisXYContainer>
-    </ChartContainer>
+  <div v-if="props.data.length === 0" class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-muted-foreground">
+    尚無使用記錄
   </div>
+
+  <ChartContainer v-else :config="chartConfig" class="aspect-auto h-[200px] w-full" :cursor="false">
+    <VisXYContainer
+      :data="props.data"
+      :svg-defs="svgDefs"
+      :margin="{ left: -40 }"
+    >
+      <VisArea
+        :x="xAccessor"
+        :y="yAccessor"
+        :color="fillColor"
+        :opacity="0.6"
+      />
+      <VisLine
+        :x="xAccessor"
+        :y="yAccessor"
+        :color="lineColor"
+        :line-width="1.5"
+      />
+      <VisAxis
+        type="x"
+        :x="xAccessor"
+        :tick-line="false"
+        :domain-line="false"
+        :grid-line="false"
+        :num-ticks="6"
+        :tick-format="formatDateLabel"
+      />
+      <VisAxis
+        type="y"
+        :num-ticks="3"
+        :tick-line="false"
+        :domain-line="false"
+      />
+      <ChartTooltip />
+      <ChartCrosshair
+        :template="componentToString(chartConfig, ChartTooltipContent, {
+          labelFormatter: (d) => formatDateLabel(d as number),
+        })"
+        :color="() => chartConfig.count.color"
+      />
+    </VisXYContainer>
+  </ChartContainer>
 </template>

@@ -16,6 +16,15 @@ import {
   formatCostCeiling,
 } from "../lib/formatUtils";
 import DashboardUsageChart from "../components/DashboardUsageChart.vue";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 const historyStore = useHistoryStore();
 const router = useRouter();
@@ -43,108 +52,141 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-6 text-white">
-    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
-    <p class="mt-2 text-zinc-400">語音轉文字統計總覽</p>
+  <div class="p-6">
+    <!-- 頁面標題 -->
+    <div class="space-y-1">
+      <h2 class="text-xl font-semibold text-foreground">Dashboard</h2>
+      <p class="text-sm text-muted-foreground">語音轉文字統計總覽</p>
+    </div>
 
     <!-- 統計卡片 -->
-    <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
-      <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <p class="text-sm text-zinc-400">總口述時間</p>
-        <p class="mt-1 text-2xl font-bold text-white">
-          {{ formatDurationFromMs(historyStore.dashboardStats.totalRecordingDurationMs) }}
-        </p>
-      </div>
+    <div class="mt-6 grid grid-cols-3 gap-4">
+      <Card>
+        <CardHeader class="pb-2">
+          <CardDescription>總口述時間</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-2xl font-bold text-foreground">
+            {{ formatDurationFromMs(historyStore.dashboardStats.totalRecordingDurationMs) }}
+          </p>
+        </CardContent>
+      </Card>
 
-      <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <p class="text-sm text-zinc-400">口述字數</p>
-        <p class="mt-1 text-2xl font-bold text-white">
-          {{ formatNumber(historyStore.dashboardStats.totalCharacters) }} 字
-        </p>
-      </div>
+      <Card>
+        <CardHeader class="pb-2">
+          <CardDescription>口述字數</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-2xl font-bold text-foreground">
+            {{ formatNumber(historyStore.dashboardStats.totalCharacters) }} 字
+          </p>
+        </CardContent>
+      </Card>
 
-      <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <p class="text-sm text-zinc-400">節省時間</p>
-        <p class="mt-1 text-2xl font-bold text-white">
-          {{ formatDurationFromMs(historyStore.dashboardStats.estimatedTimeSavedMs) }}
-        </p>
-      </div>
+      <Card>
+        <CardHeader class="pb-2">
+          <CardDescription>節省時間</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-2xl font-bold text-foreground">
+            {{ formatDurationFromMs(historyStore.dashboardStats.estimatedTimeSavedMs) }}
+          </p>
+        </CardContent>
+      </Card>
 
-      <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <p class="text-sm text-zinc-400">總使用次數</p>
-        <p class="mt-1 text-2xl font-bold text-white">
-          {{ formatNumber(historyStore.dashboardStats.totalTranscriptions) }} 次
-        </p>
-      </div>
+      <Card>
+        <CardHeader class="pb-2">
+          <CardDescription>總使用次數</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-2xl font-bold text-foreground">
+            {{ formatNumber(historyStore.dashboardStats.totalTranscriptions) }} 次
+          </p>
+        </CardContent>
+      </Card>
 
-      <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <p class="text-sm text-zinc-400">平均每次字數</p>
-        <p class="mt-1 text-2xl font-bold text-white">
-          {{ historyStore.dashboardStats.totalTranscriptions > 0 ? formatNumber(Math.round(historyStore.dashboardStats.totalCharacters / historyStore.dashboardStats.totalTranscriptions)) : 0 }} 字
-        </p>
-      </div>
+      <Card>
+        <CardHeader class="pb-2">
+          <CardDescription>平均每次字數</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-2xl font-bold text-foreground">
+            {{ historyStore.dashboardStats.totalTranscriptions > 0 ? formatNumber(Math.round(historyStore.dashboardStats.totalCharacters / historyStore.dashboardStats.totalTranscriptions)) : 0 }} 字
+          </p>
+        </CardContent>
+      </Card>
 
-      <div class="rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-        <p class="text-sm text-zinc-400">API 費用上限</p>
-        <p class="mt-1 text-2xl font-bold text-white">
-          {{ formatCostCeiling(historyStore.dashboardStats.totalCostCeiling) }}
-        </p>
-        <p class="mt-1 text-xs text-zinc-500">實際費用不超過此金額</p>
-      </div>
+      <Card>
+        <CardHeader class="pb-2">
+          <CardDescription>API 費用上限</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p class="text-2xl font-bold text-foreground">
+            {{ formatCostCeiling(historyStore.dashboardStats.totalCostCeiling) }}
+          </p>
+          <p class="text-xs text-muted-foreground mt-1">實際費用不超過此金額</p>
+        </CardContent>
+      </Card>
     </div>
 
     <!-- 每日使用趨勢圖表 -->
-    <section v-if="historyStore.dailyUsageTrendList.length > 0" class="mt-6">
-      <DashboardUsageChart :data="historyStore.dailyUsageTrendList" />
-    </section>
+    <Card class="mt-6">
+      <CardHeader>
+        <CardTitle class="text-base">每日使用趨勢</CardTitle>
+        <CardDescription>最近 30 天</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <DashboardUsageChart :data="historyStore.dailyUsageTrendList" />
+      </CardContent>
+    </Card>
 
     <!-- 最近轉錄 -->
-    <section class="mt-8 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-white">最近轉錄</h2>
-        <button
+    <Card class="mt-6">
+      <CardHeader class="flex-row items-center justify-between">
+        <CardTitle class="text-base">最近轉錄</CardTitle>
+        <Button
           v-if="historyStore.recentTranscriptionList.length > 0"
-          type="button"
-          class="text-sm text-blue-400 transition hover:text-blue-300"
+          variant="link"
           @click="navigateToHistory"
         >
           查看全部
-        </button>
-      </div>
-
-      <!-- 空狀態 -->
-      <div
-        v-if="historyStore.recentTranscriptionList.length === 0"
-        class="mt-4 rounded-lg border border-dashed border-zinc-600 px-4 py-8 text-center text-zinc-400"
-      >
-        開始使用語音輸入，統計數據將在此顯示
-      </div>
-
-      <!-- 最近列表 -->
-      <div v-else class="mt-4 space-y-2">
-        <button
-          v-for="record in historyStore.recentTranscriptionList"
-          :key="record.id"
-          type="button"
-          class="w-full rounded-lg border border-zinc-700 px-4 py-3 text-left transition hover:bg-zinc-800/50"
-          @click="navigateToHistory"
+        </Button>
+      </CardHeader>
+      <CardContent>
+        <!-- 空狀態 -->
+        <div
+          v-if="historyStore.recentTranscriptionList.length === 0"
+          class="rounded-lg border border-dashed border-border px-4 py-8 text-center text-muted-foreground"
         >
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-sm text-zinc-400">
-              {{ formatTimestamp(record.timestamp) }}
-            </span>
-            <span
-              v-if="record.wasEnhanced"
-              class="rounded-full bg-purple-500/20 px-2 py-0.5 text-xs font-medium text-purple-400"
-            >
-              AI 整理
-            </span>
-          </div>
-          <p class="mt-1 text-sm text-zinc-300 truncate">
-            {{ truncateText(getDisplayText(record)) }}
-          </p>
-        </button>
-      </div>
-    </section>
+          開始使用語音輸入，統計數據將在此顯示
+        </div>
+
+        <!-- 最近列表 -->
+        <div v-else class="space-y-2">
+          <button
+            v-for="record in historyStore.recentTranscriptionList"
+            :key="record.id"
+            type="button"
+            class="w-full rounded-lg border border-border px-4 py-3 text-left transition hover:bg-accent"
+            @click="navigateToHistory"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs text-muted-foreground">
+                {{ formatTimestamp(record.timestamp) }}
+              </span>
+              <Badge
+                v-if="record.wasEnhanced"
+                class="bg-purple-500/20 text-purple-400 border-0"
+              >
+                AI 整理
+              </Badge>
+            </div>
+            <p class="mt-1 text-sm text-muted-foreground truncate">
+              {{ truncateText(getDisplayText(record)) }}
+            </p>
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   </div>
 </template>

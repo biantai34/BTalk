@@ -3,6 +3,19 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useVocabularyStore } from "../stores/useVocabularyStore";
 import { extractErrorMessage } from "../lib/errorUtils";
 import { useFeedbackMessage } from "../composables/useFeedbackMessage";
+import { Plus, Trash2 } from "lucide-vue-next";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const vocabularyStore = useVocabularyStore();
 
@@ -79,95 +92,91 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-6 text-white">
-    <h1 class="text-2xl font-bold text-white">自訂字典</h1>
-    <p class="mt-2 text-zinc-400">管理自訂詞彙以提升轉錄精準度</p>
-
-    <section class="mt-6 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold text-white">詞彙管理</h2>
-        <span class="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
-          {{ vocabularyStore.termCount }} 個詞彙
-        </span>
+  <div class="p-6">
+    <!-- Page header -->
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-semibold text-foreground">自訂字典</h2>
+          <Badge variant="secondary">{{ vocabularyStore.termCount }} 詞彙</Badge>
+        </div>
+        <p class="text-sm text-muted-foreground">管理自訂詞彙以提升轉錄精準度</p>
       </div>
 
-      <div class="mt-4 flex items-start gap-2">
-        <div class="flex-1">
-          <input
+      <div class="flex items-center gap-2">
+        <div class="flex flex-col">
+          <Input
             v-model="newTermInput"
-            type="text"
             placeholder="輸入新詞彙..."
-            class="w-full rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2 text-white outline-none transition focus:border-blue-500"
+            class="w-48"
             @keydown.enter="handleAddTerm"
           />
-          <p
-            v-if="showDuplicateHint"
-            class="mt-1 text-sm text-yellow-400"
-          >
+          <p v-if="showDuplicateHint" class="mt-1 text-xs text-destructive">
             此詞彙已存在
           </p>
         </div>
-        <button
-          type="button"
-          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+        <Button
+          size="sm"
           :disabled="isAddDisabled || showDuplicateHint"
           @click="handleAddTerm"
         >
-          新增
-        </button>
+          <Plus class="h-4 w-4 mr-1" />新增
+        </Button>
       </div>
+    </div>
 
-      <transition name="feedback-fade">
-        <p
-          v-if="feedback.message.value !== ''"
-          class="mt-3 text-sm"
-          :class="feedback.type.value === 'success' ? 'text-green-400' : 'text-red-400'"
-        >
-          {{ feedback.message.value }}
-        </p>
-      </transition>
-
-      <div v-if="vocabularyStore.isLoading" class="mt-6 text-center text-zinc-400">
-        載入中...
-      </div>
-
-      <div
-        v-else-if="vocabularyStore.termCount === 0"
-        class="mt-6 rounded-lg border border-dashed border-zinc-600 px-4 py-8 text-center text-zinc-400"
+    <!-- Feedback message -->
+    <transition name="feedback-fade">
+      <p
+        v-if="feedback.message.value !== ''"
+        class="mt-3 text-sm"
+        :class="feedback.type.value === 'success' ? 'text-emerald-500' : 'text-destructive'"
       >
+        {{ feedback.message.value }}
+      </p>
+    </transition>
+
+    <!-- Loading state -->
+    <div v-if="vocabularyStore.isLoading" class="mt-6 text-center text-muted-foreground">
+      載入中...
+    </div>
+
+    <!-- Empty state -->
+    <Card v-else-if="vocabularyStore.termCount === 0" class="mt-6">
+      <div class="px-4 py-8 text-center text-muted-foreground">
         尚無自訂詞彙，新增常用術語以提升辨識率
       </div>
+    </Card>
 
-      <table v-else class="mt-4 w-full text-left text-sm">
-        <thead>
-          <tr class="border-b border-zinc-700 text-zinc-400">
-            <th class="pb-2 font-medium">詞彙</th>
-            <th class="pb-2 font-medium">新增時間</th>
-            <th class="pb-2 text-right font-medium">操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="entry in vocabularyStore.termList"
-            :key="entry.id"
-            class="border-b border-zinc-800 transition hover:bg-zinc-800/50"
-          >
-            <td class="py-2.5 text-white">{{ entry.term }}</td>
-            <td class="py-2.5 text-zinc-400">{{ formatDate(entry.createdAt) }}</td>
-            <td class="py-2.5 text-right">
-              <button
-                type="button"
-                class="rounded-lg bg-red-600/20 px-3 py-1 text-sm text-red-400 transition hover:bg-red-600/30 disabled:cursor-not-allowed disabled:opacity-50"
+    <!-- Dictionary table -->
+    <Card v-else class="mt-6">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="w-full">詞彙</TableHead>
+            <TableHead class="w-40">新增時間</TableHead>
+            <TableHead class="w-20 text-right">操作</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="entry in vocabularyStore.termList" :key="entry.id">
+            <TableCell class="font-medium text-foreground">{{ entry.term }}</TableCell>
+            <TableCell class="text-muted-foreground">{{ formatDate(entry.createdAt) }}</TableCell>
+            <TableCell class="text-right">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                class="text-destructive"
                 :disabled="removingTermIdSet.has(entry.id)"
                 @click="handleRemoveTerm(entry.id, entry.term)"
               >
-                刪除
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+                <Trash2 class="h-4 w-4" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Card>
   </div>
 </template>
 

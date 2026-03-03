@@ -10,6 +10,26 @@ import { useFeedbackMessage } from "../composables/useFeedbackMessage";
 import type { TriggerKey } from "../types/settings";
 import type { TriggerMode } from "../types";
 
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+
 const settingsStore = useSettingsStore();
 
 // ── 快捷鍵設定 ──────────────────────────────────────────────
@@ -243,47 +263,51 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="p-6 text-white">
-    <h1 class="text-2xl font-bold text-white">設定</h1>
-    <p class="mt-2 text-zinc-400">快捷鍵、API Key 與應用程式偏好</p>
+  <div class="p-6 space-y-6 text-foreground">
+    <div>
+      <h1 class="text-2xl font-bold text-foreground">設定</h1>
+      <p class="mt-2 text-muted-foreground">快捷鍵、API Key 與應用程式偏好</p>
+    </div>
 
     <!-- 快捷鍵設定 -->
-    <section class="mt-6 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <h2 class="text-lg font-semibold text-white">快捷鍵設定</h2>
-
-      <div class="mt-4 space-y-4">
+    <Card>
+      <CardHeader class="border-b border-border">
+        <CardTitle class="text-base">快捷鍵設定</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4 pt-5">
         <!-- 觸發鍵 -->
-        <div>
-          <label for="trigger-key-select" class="block text-sm text-zinc-300">
-            觸發鍵
-          </label>
-          <select
-            id="trigger-key-select"
-            :value="settingsStore.hotkeyConfig?.triggerKey"
-            class="mt-1 w-full rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2 text-white outline-none transition focus:border-blue-500 lg:w-auto"
-            @change="handleTriggerKeyChange(($event.target as HTMLSelectElement).value as TriggerKey)"
+        <div class="flex items-center justify-between">
+          <Label>觸發鍵</Label>
+          <Select
+            :model-value="settingsStore.hotkeyConfig?.triggerKey"
+            @update:model-value="handleTriggerKeyChange($event as TriggerKey)"
           >
-            <option
-              v-for="opt in triggerKeyOptions"
-              :key="opt.value"
-              :value="opt.value"
-            >
-              {{ opt.label }}
-            </option>
-          </select>
+            <SelectTrigger class="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="opt in triggerKeyOptions"
+                :key="opt.value"
+                :value="opt.value"
+              >
+                {{ opt.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <!-- 觸發模式 -->
-        <div>
-          <p class="text-sm text-zinc-300">觸發模式</p>
-          <div class="mt-1 flex gap-2">
+        <div class="flex items-center justify-between">
+          <Label>觸發模式</Label>
+          <div class="flex rounded-lg border border-border overflow-hidden">
             <button
               type="button"
-              class="rounded-lg px-4 py-2 text-sm font-medium transition"
+              class="px-4 py-2 text-sm font-medium transition-colors"
               :class="
                 settingsStore.triggerMode === 'hold'
-                  ? 'bg-blue-600 text-white'
-                  : 'border border-zinc-600 text-zinc-300 hover:bg-zinc-800'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
               "
               @click="handleTriggerModeChange('hold')"
             >
@@ -291,294 +315,277 @@ onBeforeUnmount(() => {
             </button>
             <button
               type="button"
-              class="rounded-lg px-4 py-2 text-sm font-medium transition"
+              class="px-4 py-2 text-sm font-medium transition-colors"
               :class="
                 settingsStore.triggerMode === 'toggle'
-                  ? 'bg-blue-600 text-white'
-                  : 'border border-zinc-600 text-zinc-300 hover:bg-zinc-800'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent'
               "
               @click="handleTriggerModeChange('toggle')"
             >
               Toggle
             </button>
           </div>
-          <p class="mt-2 text-sm text-zinc-400">
-            {{
-              settingsStore.triggerMode === "hold"
-                ? "按住錄音，放開停止"
-                : "按一下開始，再按停止"
-            }}
-          </p>
         </div>
-      </div>
 
-      <transition name="feedback-fade">
-        <p
-          v-if="hotkeyFeedback.message.value !== ''"
-          class="mt-3 text-sm"
-          :class="
-            hotkeyFeedback.type.value === 'success'
-              ? 'text-green-400'
-              : 'text-red-400'
-          "
-        >
-          {{ hotkeyFeedback.message.value }}
+        <p class="text-sm text-muted-foreground leading-relaxed">
+          {{
+            settingsStore.triggerMode === "hold"
+              ? "按住錄音，放開停止"
+              : "按一下開始，再按停止"
+          }}
         </p>
-      </transition>
-    </section>
+
+        <transition name="feedback-fade">
+          <p
+            v-if="hotkeyFeedback.message.value !== ''"
+            class="text-sm"
+            :class="
+              hotkeyFeedback.type.value === 'success'
+                ? 'text-green-400'
+                : 'text-red-400'
+            "
+          >
+            {{ hotkeyFeedback.message.value }}
+          </p>
+        </transition>
+      </CardContent>
+    </Card>
 
     <!-- Groq API Key -->
-    <section class="mt-6 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold text-white">Groq API Key</h2>
-        <span
-          class="rounded-full px-2 py-0.5 text-xs font-medium"
-          :class="apiKeyStatusClass"
-        >
-          {{ apiKeyStatusLabel }}
-        </span>
-      </div>
-
-      <p class="mt-2 text-sm text-zinc-400">
-        請在
+    <Card>
+      <CardHeader class="flex-row items-center justify-between border-b border-border">
+        <div class="flex items-center gap-2">
+          <CardTitle class="text-base">Groq API Key</CardTitle>
+          <Badge
+            :class="apiKeyStatusClass"
+            class="border-0"
+          >
+            {{ apiKeyStatusLabel }}
+          </Badge>
+        </div>
         <a
           href="https://console.groq.com/keys"
           target="_blank"
           rel="noreferrer"
-          class="text-blue-400 transition-colors hover:text-blue-300"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          Groq Console
+          前往 Groq Console &rarr;
         </a>
-        產生 API Key 後貼上。
-      </p>
+      </CardHeader>
+      <CardContent class="space-y-4 pt-5">
+        <p class="text-sm text-muted-foreground leading-relaxed">
+          請在
+          <a
+            href="https://console.groq.com/keys"
+            target="_blank"
+            rel="noreferrer"
+            class="text-primary hover:underline"
+          >
+            Groq Console
+          </a>
+          產生 API Key 後貼上。
+        </p>
 
-      <p
-        v-if="shouldShowOnboardingHint"
-        class="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200"
-      >
-        歡迎使用 SayIt！請先設定 Groq API Key 以啟用語音輸入功能。
-      </p>
+        <p
+          v-if="shouldShowOnboardingHint"
+          class="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-200"
+        >
+          歡迎使用 SayIt！請先設定 Groq API Key 以啟用語音輸入功能。
+        </p>
 
-      <div class="mt-4 flex flex-col gap-3 lg:flex-row">
-        <div class="flex-1">
-          <label for="groq-api-key-input" class="mb-2 block text-sm text-zinc-300">
-            API Key
-          </label>
-          <div class="flex items-center gap-2">
-            <input
-              id="groq-api-key-input"
+        <div class="flex gap-2">
+          <div class="flex flex-1 gap-2">
+            <Input
               v-model="apiKeyInput"
               :type="isApiKeyVisible ? 'text' : 'password'"
               placeholder="gsk_..."
-              class="w-full rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-2 text-white outline-none transition focus:border-blue-500"
               autocomplete="off"
+              class="flex-1"
             />
-            <button
-              type="button"
-              class="rounded-lg border border-zinc-600 px-3 py-2 text-sm text-zinc-300 transition hover:bg-zinc-800 hover:text-white"
+            <Button
+              variant="outline"
+              size="sm"
+              class="shrink-0"
               @click="toggleApiKeyVisibility"
             >
               {{ isApiKeyVisible ? "隱藏" : "顯示" }}
-            </button>
+            </Button>
           </div>
-        </div>
-
-        <div class="flex items-end">
-          <button
-            type="button"
-            class="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+          <Button
             :disabled="isSubmittingApiKey"
             @click="handleSaveApiKey"
           >
             儲存
-          </button>
+          </Button>
         </div>
-      </div>
 
-      <div class="mt-4 flex items-center justify-between">
+        <div class="flex items-center justify-between">
+          <transition name="feedback-fade">
+            <p
+              v-if="apiKeyFeedback.message.value !== ''"
+              class="text-sm"
+              :class="
+                apiKeyFeedback.type.value === 'success' ? 'text-green-400' : 'text-red-400'
+              "
+            >
+              {{ apiKeyFeedback.message.value }}
+            </p>
+          </transition>
+
+          <Button
+            v-if="settingsStore.hasApiKey"
+            variant="outline"
+            :class="
+              isConfirmingDeleteApiKey
+                ? 'bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90'
+                : 'text-destructive border-destructive hover:bg-destructive/10'
+            "
+            :disabled="isSubmittingApiKey"
+            @click="requestDeleteApiKey"
+          >
+            {{ isConfirmingDeleteApiKey ? '確認刪除？' : '刪除 API Key' }}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+
+    <!-- AI 整理 Prompt -->
+    <Card>
+      <CardHeader class="border-b border-border">
+        <CardTitle class="text-base">AI 整理 Prompt</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4 pt-5">
+        <p class="text-sm text-muted-foreground">
+          自訂 AI 整理文字時使用的系統提示詞。修改後點擊儲存。
+        </p>
+
+        <Textarea
+          v-model="promptInput"
+          class="font-mono min-h-[120px]"
+        />
+
+        <div class="flex justify-end gap-2">
+          <Button
+            :disabled="isSubmittingPrompt"
+            @click="handleSavePrompt"
+          >
+            儲存
+          </Button>
+          <Button
+            variant="outline"
+            :class="
+              isConfirmingResetPrompt
+                ? 'border-destructive text-destructive hover:bg-destructive/10'
+                : ''
+            "
+            :disabled="isSubmittingPrompt"
+            @click="requestResetPrompt"
+          >
+            {{ isConfirmingResetPrompt ? '確認重置？' : '重置為預設' }}
+          </Button>
+        </div>
+
         <transition name="feedback-fade">
           <p
-            v-if="apiKeyFeedback.message.value !== ''"
+            v-if="promptFeedback.message.value !== ''"
             class="text-sm"
             :class="
-              apiKeyFeedback.type.value === 'success' ? 'text-green-400' : 'text-red-400'
+              promptFeedback.type.value === 'success'
+                ? 'text-green-400'
+                : 'text-red-400'
             "
           >
-            {{ apiKeyFeedback.message.value }}
+            {{ promptFeedback.message.value }}
           </p>
         </transition>
-
-        <button
-          v-if="settingsStore.hasApiKey"
-          type="button"
-          class="rounded-lg px-4 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50"
-          :class="
-            isConfirmingDeleteApiKey
-              ? 'bg-red-600 text-white hover:bg-red-500'
-              : 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
-          "
-          :disabled="isSubmittingApiKey"
-          @click="requestDeleteApiKey"
-        >
-          {{ isConfirmingDeleteApiKey ? '確認刪除？' : '刪除 API Key' }}
-        </button>
-      </div>
-    </section>
-
-    <section class="mt-6 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <h2 class="text-lg font-semibold text-white">AI 整理 Prompt</h2>
-      <p class="mt-2 text-sm text-zinc-400">
-        自訂 AI 整理文字時使用的系統提示詞。修改後點擊儲存。
-      </p>
-
-      <textarea
-        v-model="promptInput"
-        rows="10"
-        class="mt-4 w-full resize-y rounded-lg border border-zinc-600 bg-zinc-800 px-4 py-3 font-mono text-sm text-white outline-none transition focus:border-blue-500"
-      />
-
-      <div class="mt-4 flex items-center gap-3">
-        <button
-          type="button"
-          class="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="isSubmittingPrompt"
-          @click="handleSavePrompt"
-        >
-          儲存
-        </button>
-        <button
-          type="button"
-          class="rounded-lg border px-4 py-2 text-sm transition disabled:cursor-not-allowed disabled:opacity-50"
-          :class="
-            isConfirmingResetPrompt
-              ? 'border-red-500 bg-red-600/20 text-red-400 hover:bg-red-600/30'
-              : 'border-zinc-600 text-zinc-300 hover:bg-zinc-800 hover:text-white'
-          "
-          :disabled="isSubmittingPrompt"
-          @click="requestResetPrompt"
-        >
-          {{ isConfirmingResetPrompt ? '確認重置？' : '重置為預設' }}
-        </button>
-      </div>
-
-      <transition name="feedback-fade">
-        <p
-          v-if="promptFeedback.message.value !== ''"
-          class="mt-3 text-sm"
-          :class="
-            promptFeedback.type.value === 'success'
-              ? 'text-green-400'
-              : 'text-red-400'
-          "
-        >
-          {{ promptFeedback.message.value }}
-        </p>
-      </transition>
-
-    </section>
+      </CardContent>
+    </Card>
 
     <!-- 短文字門檻 -->
-    <section class="mt-6 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <h2 class="text-lg font-semibold text-white">短文字門檻</h2>
-      <p class="mt-2 text-sm text-zinc-400">
-        啟用後，低於指定字數的轉錄文字將跳過 AI 整理，直接貼上原文。停用則每次都做 AI 整理。
-      </p>
-
-      <div class="mt-4 flex items-center justify-between">
-        <p class="text-sm text-white">
-          {{ thresholdEnabled ? '已啟用' : '已停用' }}
+    <Card>
+      <CardHeader class="border-b border-border">
+        <CardTitle class="text-base">短文字門檻</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-4 pt-5">
+        <p class="text-sm text-muted-foreground leading-relaxed">
+          啟用後，低於指定字數的轉錄文字將跳過 AI 整理，直接貼上原文。停用則每次都做 AI 整理。
         </p>
-        <button
-          type="button"
-          class="relative h-6 w-11 shrink-0 rounded-full transition"
-          :class="thresholdEnabled ? 'bg-blue-600' : 'bg-zinc-600'"
-          @click="handleToggleEnhancementThreshold"
-        >
-          <span
-            class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-            :class="thresholdEnabled ? 'translate-x-5' : 'translate-x-0'"
+
+        <div class="flex items-center justify-between">
+          <Label>{{ thresholdEnabled ? '已啟用' : '已停用' }}</Label>
+          <Switch
+            :checked="thresholdEnabled"
+            @update:checked="handleToggleEnhancementThreshold"
           />
-        </button>
-      </div>
+        </div>
 
-      <div v-if="thresholdEnabled" class="mt-3 flex items-center gap-3">
-        <label for="threshold-char-count" class="text-sm text-zinc-300">
-          門檻字數
-        </label>
-        <input
-          id="threshold-char-count"
-          v-model.number="thresholdCharCount"
-          type="number"
-          min="1"
-          class="w-24 rounded-lg border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm text-white outline-none transition focus:border-blue-500"
-        />
-        <button
-          type="button"
-          class="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-blue-500"
-          @click="handleSaveThresholdCharCount"
-        >
-          儲存
-        </button>
-      </div>
+        <div v-if="thresholdEnabled" class="flex items-center gap-3">
+          <Label for="threshold-char-count">門檻字數</Label>
+          <Input
+            id="threshold-char-count"
+            v-model.number="thresholdCharCount"
+            type="number"
+            min="1"
+            class="w-24"
+          />
+          <Button
+            size="sm"
+            @click="handleSaveThresholdCharCount"
+          >
+            儲存
+          </Button>
+        </div>
 
-      <transition name="feedback-fade">
-        <p
-          v-if="enhancementThresholdFeedback.message.value !== ''"
-          class="mt-3 text-sm"
-          :class="
-            enhancementThresholdFeedback.type.value === 'success'
-              ? 'text-green-400'
-              : 'text-red-400'
-          "
-        >
-          {{ enhancementThresholdFeedback.message.value }}
-        </p>
-      </transition>
-    </section>
+        <transition name="feedback-fade">
+          <p
+            v-if="enhancementThresholdFeedback.message.value !== ''"
+            class="text-sm"
+            :class="
+              enhancementThresholdFeedback.type.value === 'success'
+                ? 'text-green-400'
+                : 'text-red-400'
+            "
+          >
+            {{ enhancementThresholdFeedback.message.value }}
+          </p>
+        </transition>
+      </CardContent>
+    </Card>
 
     <!-- 應用程式 -->
-    <section class="mt-6 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
-      <h2 class="text-lg font-semibold text-white">應用程式</h2>
-
-      <div class="mt-4 flex items-center justify-between">
-        <div>
-          <p class="text-sm text-white">開機自啟動</p>
-          <p class="text-xs text-zinc-400">開機時自動啟動 SayIt</p>
-        </div>
-        <button
-          type="button"
-          class="relative h-6 w-11 rounded-full transition"
-          :class="
-            settingsStore.isAutoStartEnabled ? 'bg-blue-600' : 'bg-zinc-600'
-          "
-          :disabled="isTogglingAutoStart"
-          @click="handleToggleAutoStart"
-        >
-          <span
-            class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform"
-            :class="
-              settingsStore.isAutoStartEnabled
-                ? 'translate-x-5'
-                : 'translate-x-0'
-            "
+    <Card>
+      <CardHeader class="border-b border-border">
+        <CardTitle class="text-base">應用程式</CardTitle>
+      </CardHeader>
+      <CardContent class="pt-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <Label>開機自動啟動</Label>
+            <p class="text-sm text-muted-foreground">登入系統後自動啟動 SayIt</p>
+          </div>
+          <Switch
+            :checked="settingsStore.isAutoStartEnabled"
+            :disabled="isTogglingAutoStart"
+            @update:checked="handleToggleAutoStart"
           />
-        </button>
-      </div>
+        </div>
 
-      <transition name="feedback-fade">
-        <p
-          v-if="autoStartFeedback.message.value !== ''"
-          class="mt-3 text-sm"
-          :class="
-            autoStartFeedback.type.value === 'success'
-              ? 'text-green-400'
-              : 'text-red-400'
-          "
-        >
-          {{ autoStartFeedback.message.value }}
-        </p>
-      </transition>
-    </section>
+        <transition name="feedback-fade">
+          <p
+            v-if="autoStartFeedback.message.value !== ''"
+            class="mt-3 text-sm"
+            :class="
+              autoStartFeedback.type.value === 'success'
+                ? 'text-green-400'
+                : 'text-red-400'
+            "
+          >
+            {{ autoStartFeedback.message.value }}
+          </p>
+        </transition>
+      </CardContent>
+    </Card>
   </div>
 </template>
 
