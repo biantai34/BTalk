@@ -12,3 +12,9 @@ export interface HudState {
 }
 
 export type TriggerMode = "hold" | "toggle";
+
+export interface HudTargetPosition {
+  x: number;
+  y: number;
+  monitorKey: string;
+}

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { PhysicalPosition } from "@tauri-apps/api/dpi";
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Window, getCurrentWindow } from "@tauri-apps/api/window";
 import { defineStore } from "pinia";
@@ -38,7 +39,7 @@ import {
   type HotkeyEventPayload,
   type QualityMonitorResultPayload,
 } from "../types/events";
-import type { HudStatus } from "../types";
+import type { HudStatus, HudTargetPosition } from "../types";
 import type { VoiceFlowStateChangedPayload } from "../types/events";
 import { useSettingsStore } from "./useSettingsStore";
 
@@ -86,6 +87,8 @@ const ENHANCEMENT_CHAR_THRESHOLD = 10;
 const ENHANCING_MESSAGE = "整理中...";
 const PASTE_SUCCESS_UNENHANCED_MESSAGE = "已貼上（未整理）";
 
+const MONITOR_POLL_INTERVAL_MS = 250;
+
 export const useVoiceFlowStore = defineStore("voice-flow", () => {
   const status = ref<HudStatus>("idle");
   const message = ref("");
@@ -100,6 +103,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   let collapseHideTimer: ReturnType<typeof setTimeout> | null = null;
   const COLLAPSE_HIDE_DELAY_MS = 400;
   const lastWasModified = ref<boolean | null>(null);
+  let monitorPollTimer: ReturnType<typeof setInterval> | null = null;
+  let lastMonitorKey = "";
+  let isRepositioning = false;
 
   async function readClipboardText(): Promise<string | undefined> {
     try {
@@ -167,10 +173,51 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     void emit(VOICE_FLOW_STATE_CHANGED, payload);
   }
 
+  async function repositionHudToCurrentMonitor() {
+    if (isRepositioning) return;
+    isRepositioning = true;
+    try {
+      const position = await invoke<HudTargetPosition>(
+        "get_hud_target_position",
+      );
+      if (position.monitorKey !== lastMonitorKey) {
+        lastMonitorKey = position.monitorKey;
+        await getAppWindow().setPosition(
+          new PhysicalPosition(position.x, position.y),
+        );
+      }
+    } catch (err) {
+      writeErrorLog(
+        `useVoiceFlowStore: repositionHudToCurrentMonitor failed: ${extractErrorMessage(err)}`,
+      );
+    } finally {
+      isRepositioning = false;
+    }
+  }
+
+  function startMonitorPolling() {
+    stopMonitorPolling();
+    monitorPollTimer = setInterval(() => {
+      void repositionHudToCurrentMonitor();
+    }, MONITOR_POLL_INTERVAL_MS);
+  }
+
+  function stopMonitorPolling() {
+    if (monitorPollTimer) {
+      clearInterval(monitorPollTimer);
+      monitorPollTimer = null;
+    }
+    lastMonitorKey = "";
+    isRepositioning = false;
+  }
+
   async function showHud() {
     const window = getAppWindow();
+    lastMonitorKey = "";
+    await repositionHudToCurrentMonitor();
     await window.show();
     await window.setIgnoreCursorEvents(true);
+    startMonitorPolling();
   }
 
   async function hideHud() {
@@ -232,6 +279,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     emitVoiceFlowStateChanged(nextStatus, nextMessage);
 
     if (nextStatus === "idle") {
+      stopMonitorPolling();
       collapseHideTimer = setTimeout(() => {
         hideHud().catch((err) =>
           writeErrorLog(
@@ -551,6 +599,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   function cleanup() {
     clearAutoHideTimer();
     clearCollapseHideTimer();
+    stopMonitorPolling();
     stopElapsedTimer();
     destroyAudioAnalyser();
     analyserHandle.value = null;
