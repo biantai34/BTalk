@@ -13,15 +13,17 @@ use tauri::{
 #[serde(rename_all = "camelCase")]
 pub enum TriggerKey {
     // macOS keys (keycode)
-    Fn,      // 63
-    Option,  // 58
-    Command, // 55
+    Fn,           // 63
+    Option,       // 58 (left)
+    RightOption,  // 61
+    Command,      // 55
     // Windows keys (VK code)
     RightAlt, // VK_RMENU (0xA5)
     LeftAlt,  // VK_LMENU (0xA4)
     // Cross-platform
-    Control, // macOS: 59, Windows: VK_LCONTROL (0xA2)
-    Shift,   // macOS: 56, Windows: VK_LSHIFT (0xA0)
+    Control,      // macOS: 59 (left), Windows: VK_LCONTROL (0xA2)
+    RightControl, // macOS: 62
+    Shift,        // macOS: 56, Windows: VK_LSHIFT (0xA0)
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -140,7 +142,9 @@ use core_graphics::event::{
 mod macos_keycodes {
     pub const FN: u16 = 63;
     pub const OPTION_L: u16 = 58;
+    pub const OPTION_R: u16 = 61;
     pub const CONTROL_L: u16 = 59;
+    pub const CONTROL_R: u16 = 62;
     pub const COMMAND_L: u16 = 55;
     pub const SHIFT_L: u16 = 56;
 }
@@ -210,7 +214,9 @@ fn matches_trigger_key_macos(keycode: u16, trigger_key: &TriggerKey) -> bool {
     match trigger_key {
         TriggerKey::Fn => keycode == macos_keycodes::FN,
         TriggerKey::Option => keycode == macos_keycodes::OPTION_L,
+        TriggerKey::RightOption => keycode == macos_keycodes::OPTION_R,
         TriggerKey::Control => keycode == macos_keycodes::CONTROL_L,
+        TriggerKey::RightControl => keycode == macos_keycodes::CONTROL_R,
         TriggerKey::Command => keycode == macos_keycodes::COMMAND_L,
         TriggerKey::Shift => keycode == macos_keycodes::SHIFT_L,
         _ => false, // Windows-only keys
@@ -222,8 +228,12 @@ fn matches_trigger_key_macos(keycode: u16, trigger_key: &TriggerKey) -> bool {
 fn is_modifier_pressed(flags: CGEventFlags, trigger_key: &TriggerKey) -> Option<bool> {
     match trigger_key {
         TriggerKey::Fn => Some(flags.contains(CGEventFlags::CGEventFlagSecondaryFn)),
-        TriggerKey::Option => Some(flags.contains(CGEventFlags::CGEventFlagAlternate)),
-        TriggerKey::Control => Some(flags.contains(CGEventFlags::CGEventFlagControl)),
+        TriggerKey::Option | TriggerKey::RightOption => {
+            Some(flags.contains(CGEventFlags::CGEventFlagAlternate))
+        }
+        TriggerKey::Control | TriggerKey::RightControl => {
+            Some(flags.contains(CGEventFlags::CGEventFlagControl))
+        }
         TriggerKey::Command => Some(flags.contains(CGEventFlags::CGEventFlagCommand)),
         TriggerKey::Shift => Some(flags.contains(CGEventFlags::CGEventFlagShift)),
         _ => None,

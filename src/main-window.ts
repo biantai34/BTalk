@@ -5,6 +5,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import MainApp from "./MainApp.vue";
 import router from "./router";
 import { initializeDatabase } from "./lib/database";
+import { extractErrorMessage } from "./lib/errorUtils";
 import { useSettingsStore } from "./stores/useSettingsStore";
 import "./style.css";
 
@@ -16,7 +17,7 @@ async function bootstrap() {
   try {
     await initializeDatabase();
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = extractErrorMessage(err);
     console.error("[main-window] Database init failed:", message);
     await invoke("debug_log", {
       level: "error",
@@ -26,6 +27,7 @@ async function bootstrap() {
 
   const settingsStore = useSettingsStore();
   await settingsStore.loadSettings();
+  await settingsStore.initializeAutoStart();
 
   if (!settingsStore.hasApiKey) {
     await router.push("/settings");
@@ -35,6 +37,16 @@ async function bootstrap() {
     await currentWindow.setFocus();
     console.log("[main-window] API Key missing, redirected to settings");
   }
+
+  // 延遲 5 秒背景檢查更新，避免影響啟動體驗
+  setTimeout(async () => {
+    try {
+      const { checkForAppUpdate } = await import("./lib/autoUpdater");
+      await checkForAppUpdate();
+    } catch (err) {
+      console.error("[main-window] Update check failed (silenced):", err);
+    }
+  }, 5000);
 
   console.log("[main-window] Dashboard initialized");
 }

@@ -3,10 +3,12 @@ import type { TriggerMode } from "./index";
 export type TriggerKey =
   | "fn"
   | "option"
+  | "rightOption"
   | "command"
   | "rightAlt"
   | "leftAlt"
   | "control"
+  | "rightControl"
   | "shift";
 
 export interface HotkeyConfig {

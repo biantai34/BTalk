@@ -16,6 +16,7 @@ const props = defineProps<{
   status: HudStatus;
   analyserHandle: AudioAnalyserHandle | null;
   recordingElapsedSeconds: number;
+  message: string;
 }>();
 
 defineEmits<{
@@ -32,6 +33,7 @@ const { waveformLevelList, startWaveformAnimation, stopWaveformAnimation } =
 const WAVEFORM_ELEMENT_COUNT = 6;
 const MIN_BAR_HEIGHT = 4;
 const MAX_BAR_HEIGHT = 28;
+const ERROR_WITH_MESSAGE_HEIGHT = 72;
 
 interface NotchShapeParams {
   width: number;
@@ -54,8 +56,15 @@ function buildNotchPath(p: NotchShapeParams): string {
   return `path('M 0,0 Q ${tr},0 ${tr},${tr} L ${tr},${h - br} Q ${tr},${h} ${tr + br},${h} L ${w - tr - br},${h} Q ${w - tr},${h} ${w - tr},${h - br} L ${w - tr},${tr} Q ${w - tr},0 ${w},0 Z')`;
 }
 
+const hasErrorMessage = computed(
+  () => visualMode.value === "error" && props.message !== "",
+);
+
 const notchStyle = computed(() => {
-  const params = NOTCH_SHAPES[visualMode.value] ?? NOTCH_SHAPES.hidden;
+  let params = NOTCH_SHAPES[visualMode.value] ?? NOTCH_SHAPES.hidden;
+  if (hasErrorMessage.value) {
+    params = { ...params, height: ERROR_WITH_MESSAGE_HEIGHT };
+  }
   return {
     width: `${params.width}px`,
     height: `${params.height}px`,
@@ -180,7 +189,7 @@ onUnmounted(() => {
   >
     <div
       class="notch-hud"
-      :class="notchHudClassList"
+      :class="[notchHudClassList, { 'notch-hud-expanded': hasErrorMessage }]"
       :style="notchStyle"
     >
       <div class="notch-content">
@@ -224,6 +233,10 @@ onUnmounted(() => {
             @click.stop="$emit('retry')"
           >&#x21BB;</span>
         </div>
+      </div>
+
+      <div v-if="hasErrorMessage" class="error-message-row">
+        <span class="error-message">{{ props.message }}</span>
       </div>
     </div>
   </div>
@@ -482,6 +495,39 @@ onUnmounted(() => {
   font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- Error: expanded notch with message ---- */
+.notch-hud-expanded {
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.notch-hud-expanded .notch-content {
+  height: 42px;
+  flex-shrink: 0;
+}
+
+.error-message-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40px 6px;
+  animation: errorMessageFadeIn 0.3s ease-out 0.2s both;
+}
+
+.error-message {
+  color: #f97316;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes errorMessageFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ---- Retry Icon ---- */

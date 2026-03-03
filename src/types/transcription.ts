@@ -18,6 +18,8 @@ export interface TranscriptionRecord {
 export interface DashboardStats {
   totalTranscriptions: number;
   totalCharacters: number;
-  averageDurationMs: number;
+  totalRecordingDurationMs: number;
+  averageSpeedCharsPerMin: number;
+  estimatedTimeSavedMs: number;
   enhancedCount: number;
 }

@@ -48,6 +48,12 @@
       "csp": "default-src 'self'; connect-src 'self' https://api.groq.com; style-src 'self' 'unsafe-inline'; script-src 'self'"
     }
   },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://releases.sayit.app/latest.json"],
+      "pubkey": "PLACEHOLDER_PUBLIC_KEY"
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

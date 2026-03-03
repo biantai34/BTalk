@@ -128,15 +128,21 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(plugins::hotkey_listener::init())
         .invoke_handler(tauri::generate_handler![
             debug_log,
             update_hotkey_config,
             plugins::clipboard_paste::paste_text,
             plugins::hotkey_listener::check_accessibility_permission_command,
-            plugins::hotkey_listener::open_accessibility_settings
+            plugins::hotkey_listener::open_accessibility_settings,
+            plugins::keyboard_monitor::start_quality_monitor
         ])
         .setup(|app| {
+            // 初始化 keyboard monitor 狀態
+            app.manage(plugins::keyboard_monitor::KeyboardMonitorState::new());
+
             let open_dashboard_item =
                 MenuItem::with_id(app, "open-dashboard", "開啟 Dashboard", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit SayIt", true, None::<&str>)?;

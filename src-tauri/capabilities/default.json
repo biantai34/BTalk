@@ -24,6 +24,9 @@
           "url": "https://api.groq.com/*"
         }
       ]
-    }
+    },
+    "autostart:default",
+    "updater:default",
+    "process:default"
   ]
 }

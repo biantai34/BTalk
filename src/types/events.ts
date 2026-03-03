@@ -45,3 +45,7 @@ export interface HotkeyErrorPayload {
   error: HotkeyErrorCode;
   message: string;
 }
+
+export interface QualityMonitorResultPayload {
+  wasModified: boolean;
+}

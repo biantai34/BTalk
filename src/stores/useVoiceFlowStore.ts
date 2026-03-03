@@ -6,9 +6,15 @@ import { ref } from "vue";
 import {
   API_KEY_MISSING_ERROR,
   extractErrorMessage,
+  getEnhancementErrorMessage,
+  getHotkeyErrorMessage,
   getMicrophoneErrorMessage,
   getTranscriptionErrorMessage,
 } from "../lib/errorUtils";
+import { enhanceText } from "../lib/enhancer";
+import { useVocabularyStore } from "./useVocabularyStore";
+import { useHistoryStore } from "./useHistoryStore";
+import type { TranscriptionRecord } from "../types/transcription";
 import {
   initializeMicrophone,
   startRecording,
@@ -23,23 +29,62 @@ import {
   HOTKEY_PRESSED,
   HOTKEY_RELEASED,
   HOTKEY_TOGGLED,
+  QUALITY_MONITOR_RESULT,
   VOICE_FLOW_STATE_CHANGED,
 } from "../composables/useTauriEvents";
 import {
   HOTKEY_ERROR_CODES,
   type HotkeyErrorPayload,
   type HotkeyEventPayload,
+  type QualityMonitorResultPayload,
 } from "../types/events";
 import type { HudStatus } from "../types";
 import type { VoiceFlowStateChangedPayload } from "../types/events";
 import { useSettingsStore } from "./useSettingsStore";
 
 const SUCCESS_DISPLAY_DURATION_MS = 1000;
-const ERROR_DISPLAY_DURATION_MS = 2000;
+const ERROR_DISPLAY_DURATION_MS = 3000;
 const EMPTY_TRANSCRIPTION_ERROR_MESSAGE = "未偵測到語音";
+const NO_SPEECH_PROBABILITY_THRESHOLD = 0.9;
+
+const WHISPER_HALLUCINATION_PHRASES = new Set([
+  "谢谢大家",
+  "謝謝大家",
+  "感谢收看",
+  "感謝收看",
+  "Thanks for watching",
+  "Thank you for watching",
+  "Subtitles by",
+]);
+
+const WHISPER_HALLUCINATION_SUBSTRINGS = [
+  "字幕由",
+  "请不吝点赞",
+  "請不吝點贊",
+  "请订阅",
+  "請訂閱",
+  "点赞、订阅",
+  "點贊、訂閱",
+  "支持《明鏡》",
+  "支持《點點》",
+  "支持《点点》",
+];
+
+function isSilenceOrHallucination(
+  rawText: string,
+  noSpeechProbability: number,
+): boolean {
+  if (!rawText) return true;
+  if (noSpeechProbability >= NO_SPEECH_PROBABILITY_THRESHOLD) return true;
+  if (WHISPER_HALLUCINATION_PHRASES.has(rawText)) return true;
+  return WHISPER_HALLUCINATION_SUBSTRINGS.some((sub) => rawText.includes(sub));
+}
 const RECORDING_MESSAGE = "錄音中...";
 const TRANSCRIBING_MESSAGE = "轉錄中...";
 const PASTE_SUCCESS_MESSAGE = "已貼上 ✓";
+const ENHANCEMENT_CHAR_THRESHOLD = 10;
+const ENHANCING_MESSAGE = "整理中...";
+const PASTE_SUCCESS_UNENHANCED_MESSAGE = "已貼上（未整理）";
 
 export const useVoiceFlowStore = defineStore("voice-flow", () => {
   const status = ref<HudStatus>("idle");
@@ -52,6 +97,20 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   let cachedAppWindow: ReturnType<typeof getCurrentWindow> | null = null;
   const unlistenFunctions: UnlistenFn[] = [];
   let autoHideTimer: ReturnType<typeof setTimeout> | null = null;
+  const lastWasModified = ref<boolean | null>(null);
+
+  async function readClipboardText(): Promise<string | undefined> {
+    try {
+      const text = await navigator.clipboard.readText();
+      return text?.trim() || undefined;
+    } catch (err) {
+      console.warn(
+        "[useVoiceFlowStore] readClipboardText failed (HUD Window may not support Clipboard API):",
+        err,
+      );
+      return undefined;
+    }
+  }
 
   function getAppWindow() {
     if (!cachedAppWindow) cachedAppWindow = getCurrentWindow();
@@ -107,6 +166,53 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
   async function hideHud() {
     await getAppWindow().hide();
+  }
+
+  function startQualityMonitorAfterPaste() {
+    void invoke("start_quality_monitor").catch((err) =>
+      writeErrorLog(
+        `useVoiceFlowStore: start_quality_monitor failed: ${extractErrorMessage(err)}`,
+      ),
+    );
+  }
+
+  function saveTranscriptionRecord(record: TranscriptionRecord) {
+    const historyStore = useHistoryStore();
+    void historyStore
+      .addTranscription(record)
+      .catch((err) =>
+        writeErrorLog(
+          `useVoiceFlowStore: addTranscription failed: ${extractErrorMessage(err)}`,
+        ),
+      );
+  }
+
+  function buildTranscriptionRecord(params: {
+    rawText: string;
+    processedText: string | null;
+    recordingDurationMs: number;
+    transcriptionDurationMs: number;
+    enhancementDurationMs: number | null;
+    wasEnhanced: boolean;
+  }): TranscriptionRecord {
+    const settingsStore = useSettingsStore();
+    return {
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      rawText: params.rawText,
+      processedText: params.processedText,
+      recordingDurationMs: Math.round(params.recordingDurationMs),
+      transcriptionDurationMs: Math.round(params.transcriptionDurationMs),
+      enhancementDurationMs:
+        params.enhancementDurationMs !== null
+          ? Math.round(params.enhancementDurationMs)
+          : null,
+      charCount: (params.processedText ?? params.rawText).length,
+      triggerMode: settingsStore.triggerMode,
+      wasEnhanced: params.wasEnhanced,
+      wasModified: null,
+      createdAt: "",
+    };
   }
 
   function transitionTo(nextStatus: HudStatus, nextMessage = "") {
@@ -171,9 +277,45 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     writeErrorLog(logMessage);
   }
 
+  async function completePasteFlow(params: {
+    text: string;
+    successMessage: string;
+    rawText: string;
+    processedText: string | null;
+    recordingDurationMs: number;
+    transcriptionDurationMs: number;
+    enhancementDurationMs: number | null;
+    wasEnhanced: boolean;
+  }) {
+    try {
+      await hideHud();
+      await invoke("paste_text", { text: params.text });
+      isRecording.value = false;
+      transitionTo("success", params.successMessage);
+      startQualityMonitorAfterPaste();
+      saveTranscriptionRecord(
+        buildTranscriptionRecord({
+          rawText: params.rawText,
+          processedText: params.processedText,
+          recordingDurationMs: params.recordingDurationMs,
+          transcriptionDurationMs: params.transcriptionDurationMs,
+          enhancementDurationMs: params.enhancementDurationMs,
+          wasEnhanced: params.wasEnhanced,
+        }),
+      );
+    } catch (pasteError) {
+      isRecording.value = false;
+      failRecordingFlow(
+        "貼上失敗",
+        `useVoiceFlowStore: paste_text failed: ${extractErrorMessage(pasteError)}`,
+      );
+    }
+  }
+
   async function handleStartRecording() {
     if (isRecording.value) return;
     isRecording.value = true;
+    lastWasModified.value = null;
     recordingStartTime = performance.now();
 
     try {
@@ -226,26 +368,99 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         return;
       }
 
-      const result = await transcribeAudio(audioBlob, apiKey);
+      const vocabularyStore = useVocabularyStore();
+      const vocabularyTermList = vocabularyStore.termList.map(
+        (entry) => entry.term,
+      );
+      const hasVocabulary = vocabularyTermList.length > 0;
 
-      if (!result.rawText) {
+      const result = await transcribeAudio(
+        audioBlob,
+        apiKey,
+        hasVocabulary ? vocabularyTermList : undefined,
+      );
+
+      if (
+        isSilenceOrHallucination(result.rawText, result.noSpeechProbability)
+      ) {
         failRecordingFlow(
           EMPTY_TRANSCRIPTION_ERROR_MESSAGE,
-          "useVoiceFlowStore: transcription returned empty text",
+          `useVoiceFlowStore: silence detected (noSpeechProb=${result.noSpeechProbability.toFixed(3)}, text="${result.rawText}")`,
         );
         return;
       }
 
-      await hideHud();
-      await invoke("paste_text", { text: result.rawText });
-      isRecording.value = false;
-      transitionTo("success", PASTE_SUCCESS_MESSAGE);
+      if (result.rawText.length >= ENHANCEMENT_CHAR_THRESHOLD) {
+        transitionTo("enhancing", ENHANCING_MESSAGE);
+        const enhancementStartTime = performance.now();
 
-      writeInfoLog(
-        `useVoiceFlowStore: pasted text, recordingDurationMs=${Math.round(
+        const clipboardContent = await readClipboardText();
+
+        try {
+          const enhancedText = await enhanceText(result.rawText, apiKey, {
+            systemPrompt: settingsStore.getAiPrompt(),
+            clipboardContent,
+            vocabularyTermList:
+              vocabularyTermList.length > 0 ? vocabularyTermList : undefined,
+          });
+          const enhancementDurationMs =
+            performance.now() - enhancementStartTime;
+
+          await completePasteFlow({
+            text: enhancedText,
+            successMessage: PASTE_SUCCESS_MESSAGE,
+            rawText: result.rawText,
+            processedText: enhancedText,
+            recordingDurationMs,
+            transcriptionDurationMs: result.transcriptionDurationMs,
+            enhancementDurationMs,
+            wasEnhanced: true,
+          });
+
+          writeInfoLog(
+            `useVoiceFlowStore: pasted enhanced text, recordingDurationMs=${Math.round(
+              recordingDurationMs,
+            )}, transcriptionDurationMs=${Math.round(
+              result.transcriptionDurationMs,
+            )}, enhancementDurationMs=${Math.round(enhancementDurationMs)}`,
+          );
+        } catch (enhanceError) {
+          const fallbackEnhancementDurationMs =
+            performance.now() - enhancementStartTime;
+          const enhanceErrorDetail = getEnhancementErrorMessage(enhanceError);
+          writeErrorLog(
+            `useVoiceFlowStore: AI enhancement failed: ${enhanceErrorDetail}`,
+          );
+
+          await completePasteFlow({
+            text: result.rawText,
+            successMessage: PASTE_SUCCESS_UNENHANCED_MESSAGE,
+            rawText: result.rawText,
+            processedText: null,
+            recordingDurationMs,
+            transcriptionDurationMs: result.transcriptionDurationMs,
+            enhancementDurationMs: fallbackEnhancementDurationMs,
+            wasEnhanced: false,
+          });
+        }
+      } else {
+        await completePasteFlow({
+          text: result.rawText,
+          successMessage: PASTE_SUCCESS_MESSAGE,
+          rawText: result.rawText,
+          processedText: null,
           recordingDurationMs,
-        )}, transcriptionDurationMs=${Math.round(result.transcriptionDurationMs)}`,
-      );
+          transcriptionDurationMs: result.transcriptionDurationMs,
+          enhancementDurationMs: null,
+          wasEnhanced: false,
+        });
+
+        writeInfoLog(
+          `useVoiceFlowStore: pasted text (skipped enhancement, length=${result.rawText.length}), recordingDurationMs=${Math.round(
+            recordingDurationMs,
+          )}, transcriptionDurationMs=${Math.round(result.transcriptionDurationMs)}`,
+        );
+      }
     } catch (error) {
       const userMessage = getTranscriptionErrorMessage(error);
       const technicalMessage = extractErrorMessage(error);
@@ -289,8 +504,14 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
           void handleStopRecording();
         }
       }),
+      listen<QualityMonitorResultPayload>(QUALITY_MONITOR_RESULT, (event) => {
+        lastWasModified.value = event.payload.wasModified;
+        writeInfoLog(
+          `useVoiceFlowStore: quality monitor result: wasModified=${event.payload.wasModified}`,
+        );
+      }),
       listen<HotkeyErrorPayload>(HOTKEY_ERROR, (event) => {
-        const errorMessage = event.payload.message;
+        const hudMessage = getHotkeyErrorMessage(event.payload.error);
         if (
           event.payload.error === HOTKEY_ERROR_CODES.ACCESSIBILITY_PERMISSION
         ) {
@@ -307,8 +528,10 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
             }
           })();
         }
-        transitionTo("error", errorMessage);
-        writeErrorLog(`useVoiceFlowStore: hotkey error: ${errorMessage}`);
+        transitionTo("error", hudMessage);
+        writeErrorLog(
+          `useVoiceFlowStore: hotkey error: ${event.payload.message}`,
+        );
       }),
     ]);
     unlistenFunctions.push(...listeners);
@@ -331,6 +554,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     message,
     analyserHandle,
     recordingElapsedSeconds,
+    lastWasModified,
     initialize,
     cleanup,
     transitionTo,
