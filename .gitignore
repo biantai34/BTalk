@@ -26,3 +26,6 @@ src-tauri/target/
 test-results/
 playwright-report/
 playwright/.auth/
+
+# Claude Code local settings
+.claude/settings.local.json
