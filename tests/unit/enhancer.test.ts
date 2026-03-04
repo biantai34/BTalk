@@ -224,21 +224,6 @@ describe("enhancer.ts", () => {
       expect(body.messages[0].content).toBe(DEFAULT_SYSTEM_PROMPT);
     });
 
-    it("[P0] clipboardContent 應注入 <clipboard> 標籤", async () => {
-      mockFetch.mockResolvedValue(createSuccessResponse("整理後文字"));
-
-      const { enhanceText } = await import("../../src/lib/enhancer");
-      await enhanceText("測試輸入文字", TEST_API_KEY, {
-        clipboardContent: "剪貼簿內容範例",
-      });
-
-      const callArgs = mockFetch.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body);
-      expect(body.messages[0].content).toContain(
-        "<clipboard>\n剪貼簿內容範例\n</clipboard>",
-      );
-    });
-
     it("[P0] vocabularyTermList 應注入 <vocabulary> 標籤", async () => {
       mockFetch.mockResolvedValue(createSuccessResponse("整理後文字"));
 
@@ -252,32 +237,6 @@ describe("enhancer.ts", () => {
       expect(body.messages[0].content).toContain(
         "<vocabulary>\nTypeScript, Vue.js, Tauri\n</vocabulary>",
       );
-    });
-
-    it("[P0] 空 clipboardContent 不應注入 <clipboard> 標籤", async () => {
-      mockFetch.mockResolvedValue(createSuccessResponse("整理後文字"));
-
-      const { enhanceText } = await import("../../src/lib/enhancer");
-      await enhanceText("測試輸入文字", TEST_API_KEY, {
-        clipboardContent: "",
-      });
-
-      const callArgs = mockFetch.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body);
-      expect(body.messages[0].content).not.toContain("<clipboard>");
-    });
-
-    it("[P0] 純空白 clipboardContent 不應注入 <clipboard> 標籤", async () => {
-      mockFetch.mockResolvedValue(createSuccessResponse("整理後文字"));
-
-      const { enhanceText } = await import("../../src/lib/enhancer");
-      await enhanceText("測試輸入文字", TEST_API_KEY, {
-        clipboardContent: "   \n  ",
-      });
-
-      const callArgs = mockFetch.mock.calls[0];
-      const body = JSON.parse(callArgs[1].body);
-      expect(body.messages[0].content).not.toContain("<clipboard>");
     });
 
     it("[P0] 空 vocabularyTermList 不應注入 <vocabulary> 標籤", async () => {
@@ -295,39 +254,34 @@ describe("enhancer.ts", () => {
   });
 
   describe("buildSystemPrompt (Story 2.2)", () => {
-    it("[P0] 應正確組裝 clipboard 和 vocabulary", async () => {
+    it("[P0] 應正確組裝 vocabulary", async () => {
       const { buildSystemPrompt } = await import("../../src/lib/enhancer");
-      const result = buildSystemPrompt("基礎 prompt", "剪貼簿內容", [
-        "詞彙A",
-        "詞彙B",
-      ]);
+      const result = buildSystemPrompt("基礎 prompt", ["詞彙A", "詞彙B"]);
 
       expect(result).toBe(
-        "基礎 prompt\n\n<clipboard>\n剪貼簿內容\n</clipboard>\n\n<vocabulary>\n詞彙A, 詞彙B\n</vocabulary>",
+        "基礎 prompt\n\n<vocabulary>\n詞彙A, 詞彙B\n</vocabulary>",
       );
     });
 
-    it("[P0] 兩者皆空時只回傳基礎 prompt", async () => {
+    it("[P0] vocabulary 為空時只回傳基礎 prompt", async () => {
       const { buildSystemPrompt } = await import("../../src/lib/enhancer");
-      const result = buildSystemPrompt("基礎 prompt", "", []);
+      const result = buildSystemPrompt("基礎 prompt", []);
 
       expect(result).toBe("基礎 prompt");
     });
 
-    it("[P0] 只有 clipboard 時不應有 vocabulary 標籤", async () => {
+    it("[P0] 有 vocabulary 時應包含 vocabulary 標籤", async () => {
       const { buildSystemPrompt } = await import("../../src/lib/enhancer");
-      const result = buildSystemPrompt("基礎 prompt", "剪貼簿");
+      const result = buildSystemPrompt("基礎 prompt", ["詞彙"]);
 
-      expect(result).toContain("<clipboard>");
-      expect(result).not.toContain("<vocabulary>");
+      expect(result).toContain("<vocabulary>");
     });
 
-    it("[P0] 只有 vocabulary 時不應有 clipboard 標籤", async () => {
+    it("[P0] 無 vocabulary 時不應有 vocabulary 標籤", async () => {
       const { buildSystemPrompt } = await import("../../src/lib/enhancer");
-      const result = buildSystemPrompt("基礎 prompt", undefined, ["詞彙"]);
+      const result = buildSystemPrompt("基礎 prompt");
 
-      expect(result).not.toContain("<clipboard>");
-      expect(result).toContain("<vocabulary>");
+      expect(result).not.toContain("<vocabulary>");
     });
   });
 
@@ -339,7 +293,7 @@ describe("enhancer.ts", () => {
         (_, i) => `Term${i + 1}`,
       );
 
-      const result = buildSystemPrompt("基礎 prompt", undefined, largeTermList);
+      const result = buildSystemPrompt("基礎 prompt", largeTermList);
 
       expect(result).toContain("Term1");
       expect(result).toContain("Term100");
@@ -353,7 +307,7 @@ describe("enhancer.ts", () => {
         (_, i) => `Term${i + 1}`,
       );
 
-      const result = buildSystemPrompt("基礎 prompt", undefined, exactTermList);
+      const result = buildSystemPrompt("基礎 prompt", exactTermList);
 
       expect(result).toContain("Term1");
       expect(result).toContain("Term100");

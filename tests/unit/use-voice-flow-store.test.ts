@@ -228,11 +228,6 @@ describe("useVoiceFlowStore", () => {
     mockVocabularyState.termList = [];
     mockAddTranscription.mockClear().mockResolvedValue(undefined);
     mockAddApiUsage.mockClear().mockResolvedValue(undefined);
-    Object.assign(navigator, {
-      clipboard: {
-        readText: vi.fn().mockResolvedValue(""),
-      },
-    });
     mockGetCurrentWindow.mockClear();
     mockWebviewWindowGetByLabel.mockClear();
     mockMainWindowShow.mockClear().mockResolvedValue(undefined);
@@ -905,46 +900,6 @@ describe("useVoiceFlowStore", () => {
         "test-api-key-123",
         expect.objectContaining({
           systemPrompt: "自訂 prompt 內容",
-        }),
-      );
-    });
-
-    it("[P0] AI 整理應注入剪貼簿內容", async () => {
-      const longText = "這是一段超過十個字的測試轉錄文字內容";
-      mockTranscribeAudio.mockResolvedValueOnce({
-        rawText: longText,
-        transcriptionDurationMs: 400,
-        noSpeechProbability: 0.01,
-      });
-      mockEnhanceText.mockResolvedValueOnce({
-        text: "整理後文字",
-        usage: null,
-      });
-
-      Object.assign(navigator, {
-        clipboard: {
-          readText: vi.fn().mockResolvedValue("剪貼簿測試內容"),
-        },
-      });
-
-      const store = useVoiceFlowStore();
-      await store.initialize();
-
-      triggerHotkeyEvent("hotkey:pressed");
-      await vi.waitFor(() => {
-        expect(mockStartRecording).toHaveBeenCalledTimes(1);
-      });
-
-      triggerHotkeyEvent("hotkey:released");
-      await vi.waitFor(() => {
-        expect(mockEnhanceText).toHaveBeenCalledTimes(1);
-      });
-
-      expect(mockEnhanceText).toHaveBeenCalledWith(
-        longText,
-        "test-api-key-123",
-        expect.objectContaining({
-          clipboardContent: "剪貼簿測試內容",
         }),
       );
     });

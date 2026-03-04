@@ -19,7 +19,6 @@ export const DEFAULT_SYSTEM_PROMPT = `你是一個繁體中文文字整理助手
 
 export interface EnhanceOptions {
   systemPrompt?: string;
-  clipboardContent?: string;
   vocabularyTermList?: string[];
   modelId?: string;
 }
@@ -58,14 +57,9 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 
 export function buildSystemPrompt(
   basePrompt: string,
-  clipboardContent?: string,
   vocabularyTermList?: string[],
 ): string {
   let prompt = basePrompt;
-
-  if (clipboardContent && clipboardContent.trim()) {
-    prompt += `\n\n<clipboard>\n${clipboardContent}\n</clipboard>`;
-  }
 
   if (vocabularyTermList && vocabularyTermList.length > 0) {
     const truncatedTermList = vocabularyTermList.slice(0, MAX_VOCABULARY_TERMS);
@@ -105,11 +99,7 @@ export async function enhanceText(
   }
 
   const basePrompt = options?.systemPrompt || DEFAULT_SYSTEM_PROMPT;
-  const fullPrompt = buildSystemPrompt(
-    basePrompt,
-    options?.clipboardContent,
-    options?.vocabularyTermList,
-  );
+  const fullPrompt = buildSystemPrompt(basePrompt, options?.vocabularyTermList);
 
   const body = JSON.stringify({
     model: options?.modelId ?? DEFAULT_LLM_MODEL_ID,

@@ -114,19 +114,6 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   let lastMonitorKey = "";
   let isRepositioning = false;
 
-  async function readClipboardText(): Promise<string | undefined> {
-    try {
-      const text = await navigator.clipboard.readText();
-      return text?.trim() || undefined;
-    } catch (err) {
-      console.warn(
-        "[useVoiceFlowStore] readClipboardText failed (HUD Window may not support Clipboard API):",
-        err,
-      );
-      return undefined;
-    }
-  }
-
   function getAppWindow() {
     if (!cachedAppWindow) cachedAppWindow = getCurrentWindow();
     return cachedAppWindow;
@@ -519,12 +506,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         transitionTo("enhancing", ENHANCING_MESSAGE);
         const enhancementStartTime = performance.now();
 
-        const clipboardContent = await readClipboardText();
-
         try {
           const enhanceResult = await enhanceText(result.rawText, apiKey, {
             systemPrompt: settingsStore.getAiPrompt(),
-            clipboardContent,
             vocabularyTermList:
               vocabularyTermList.length > 0 ? vocabularyTermList : undefined,
             modelId: settingsStore.selectedLlmModelId,
