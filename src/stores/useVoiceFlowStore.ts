@@ -216,6 +216,26 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     await getAppWindow().hide();
   }
 
+  async function muteSystemAudioIfEnabled() {
+    const settingsStore = useSettingsStore();
+    if (!settingsStore.isMuteOnRecordingEnabled) return;
+    try {
+      await invoke("mute_system_audio");
+    } catch (err) {
+      writeErrorLog(
+        `useVoiceFlowStore: mute_system_audio failed (non-blocking): ${extractErrorMessage(err)}`,
+      );
+    }
+  }
+
+  function restoreSystemAudio() {
+    void invoke("restore_system_audio").catch((err) =>
+      writeErrorLog(
+        `useVoiceFlowStore: restore_system_audio failed: ${extractErrorMessage(err)}`,
+      ),
+    );
+  }
+
   function startQualityMonitorAfterPaste() {
     void invoke("start_quality_monitor").catch((err) =>
       writeErrorLog(
@@ -324,6 +344,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   }
 
   function failRecordingFlow(errorMessage: string, logMessage: string) {
+    restoreSystemAudio();
     isRecording.value = false;
     transitionTo("error", errorMessage);
     writeErrorLog(logMessage);
@@ -415,7 +436,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     recordingStartTime = performance.now();
 
     try {
-      await initializeMicrophone();
+      await Promise.all([muteSystemAudioIfEnabled(), initializeMicrophone()]);
       startRecording();
       try {
         analyserHandle.value = createAudioAnalyser();
@@ -440,6 +461,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   async function handleStopRecording() {
     if (!isRecording.value) return;
 
+    restoreSystemAudio();
     stopElapsedTimer();
     destroyAudioAnalyser();
     analyserHandle.value = null;

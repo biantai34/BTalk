@@ -38,6 +38,7 @@ const STORE_NAME = "settings.json";
 
 export const DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED = true;
 export const DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT = 10;
+export const DEFAULT_MUTE_ON_RECORDING = true;
 
 function getDefaultTriggerKey(): TriggerKey {
   const isMac = navigator.userAgent.includes("Mac");
@@ -74,6 +75,7 @@ export const useSettingsStore = defineStore("settings", () => {
   const selectedLlmModelId = ref<LlmModelId>(DEFAULT_LLM_MODEL_ID);
   const selectedWhisperModelId = ref<WhisperModelId>(DEFAULT_WHISPER_MODEL_ID);
   const customTriggerKey = ref<CustomTriggerKey | null>(null);
+  const isMuteOnRecordingEnabled = ref<boolean>(DEFAULT_MUTE_ON_RECORDING);
   const customTriggerKeyDomCode = ref<string>("");
   let isLoaded = false;
 
@@ -147,6 +149,10 @@ export const useSettingsStore = defineStore("settings", () => {
         savedWhisperModelId ?? null,
       );
 
+      const savedMuteOnRecording = await store.get<boolean>("muteOnRecording");
+      isMuteOnRecordingEnabled.value =
+        savedMuteOnRecording ?? DEFAULT_MUTE_ON_RECORDING;
+
       // Sync saved (or default) config to Rust on startup
       await syncHotkeyConfigToRust(key, mode);
       isLoaded = true;
@@ -166,6 +172,7 @@ export const useSettingsStore = defineStore("settings", () => {
         DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED;
       enhancementThresholdCharCount.value =
         DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT;
+      isMuteOnRecordingEnabled.value = DEFAULT_MUTE_ON_RECORDING;
     }
   }
 
@@ -498,6 +505,28 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   }
 
+  async function saveMuteOnRecording(enabled: boolean) {
+    try {
+      const store = await load(STORE_NAME);
+      await store.set("muteOnRecording", enabled);
+      await store.save();
+      isMuteOnRecordingEnabled.value = enabled;
+
+      const payload: SettingsUpdatedPayload = {
+        key: "muteOnRecording",
+        value: enabled,
+      };
+      await emitEvent(SETTINGS_UPDATED, payload);
+      console.log(`[useSettingsStore] muteOnRecording saved: ${enabled}`);
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] saveMuteOnRecording failed:",
+        extractErrorMessage(err),
+      );
+      throw err;
+    }
+  }
+
   async function initializeAutoStart() {
     try {
       const store = await load(STORE_NAME);
@@ -559,6 +588,8 @@ export const useSettingsStore = defineStore("settings", () => {
     saveLlmModel,
     saveWhisperModel,
     refreshModelSelection,
+    isMuteOnRecordingEnabled,
+    saveMuteOnRecording,
     loadAutoStartStatus,
     toggleAutoStart,
     initializeAutoStart,

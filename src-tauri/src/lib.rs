@@ -354,6 +354,8 @@ pub fn run() {
             debug_log,
             update_hotkey_config,
             get_hud_target_position,
+            plugins::audio_control::mute_system_audio,
+            plugins::audio_control::restore_system_audio,
             plugins::clipboard_paste::copy_to_clipboard,
             plugins::clipboard_paste::paste_text,
             plugins::hotkey_listener::check_accessibility_permission_command,
@@ -363,6 +365,8 @@ pub fn run() {
         .setup(|app| {
             // 初始化 keyboard monitor 狀態
             app.manage(plugins::keyboard_monitor::KeyboardMonitorState::new());
+            // 初始化 audio control 狀態
+            app.manage(plugins::audio_control::AudioControlState::new());
 
             let open_dashboard_item =
                 MenuItem::with_id(app, "open-dashboard", "開啟 Dashboard", true, None::<&str>)?;

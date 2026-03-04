@@ -388,6 +388,21 @@ async function handleLlmModelChange(newId: LlmModelId) {
   }
 }
 
+// ── 錄音自動靜音 ──────────────────────────────────────────────
+const muteOnRecordingFeedback = useFeedbackMessage();
+
+async function handleToggleMuteOnRecording(newValue: boolean) {
+  try {
+    await settingsStore.saveMuteOnRecording(newValue);
+    muteOnRecordingFeedback.show(
+      "success",
+      newValue ? "已啟用錄音自動靜音" : "已停用錄音自動靜音",
+    );
+  } catch (err) {
+    muteOnRecordingFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
 // ── 應用程式 ────────────────────────────────────────────────
 const autoStartFeedback = useFeedbackMessage();
 const isTogglingAutoStart = ref(false);
@@ -430,6 +445,7 @@ onBeforeUnmount(() => {
   promptFeedback.clearTimer();
   enhancementThresholdFeedback.clearTimer();
   modelFeedback.clearTimer();
+  muteOnRecordingFeedback.clearTimer();
   autoStartFeedback.clearTimer();
   clearTimeout(deleteConfirmTimeoutId);
   clearTimeout(resetPromptConfirmTimeoutId);
@@ -871,7 +887,35 @@ onBeforeUnmount(() => {
       <CardHeader class="border-b border-border">
         <CardTitle class="text-base">應用程式</CardTitle>
       </CardHeader>
-      <CardContent class="pt-5">
+      <CardContent class="pt-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <Label for="mute-on-recording">錄音時自動靜音</Label>
+            <p class="text-sm text-muted-foreground">開始錄音時自動靜音系統喇叭，結束後恢復</p>
+          </div>
+          <Switch
+            id="mute-on-recording"
+            :model-value="settingsStore.isMuteOnRecordingEnabled"
+            @update:model-value="handleToggleMuteOnRecording"
+          />
+        </div>
+
+        <transition name="feedback-fade">
+          <p
+            v-if="muteOnRecordingFeedback.message.value !== ''"
+            class="text-sm"
+            :class="
+              muteOnRecordingFeedback.type.value === 'success'
+                ? 'text-green-400'
+                : 'text-red-400'
+            "
+          >
+            {{ muteOnRecordingFeedback.message.value }}
+          </p>
+        </transition>
+
+        <div class="border-t border-border" />
+
         <div class="flex items-center justify-between">
           <div>
             <Label for="auto-start">開機自動啟動</Label>
@@ -888,7 +932,7 @@ onBeforeUnmount(() => {
         <transition name="feedback-fade">
           <p
             v-if="autoStartFeedback.message.value !== ''"
-            class="mt-3 text-sm"
+            class="text-sm"
             :class="
               autoStartFeedback.type.value === 'success'
                 ? 'text-green-400'
