@@ -29,3 +29,7 @@ playwright/.auth/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Tauri signing keys
+*.key
+*.key.pub
