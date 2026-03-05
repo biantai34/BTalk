@@ -42,11 +42,12 @@ jq --arg v "$VERSION" '.version = $v' package.json > tmp.json && mv tmp.json pac
 
 echo "✓ 已更新 tauri.conf.json 和 package.json"
 
-# Commit + Tag + Push
+# Commit + Tag + Push（分開推送避免 GitHub Actions tag 事件遺失）
 git add src-tauri/tauri.conf.json package.json
 git commit -m "chore: bump version to $VERSION"
 git tag "v$VERSION"
-git push origin main --tags
+git push origin main
+git push origin "v$VERSION"
 
 echo ""
 echo "✓ 已推送 v$VERSION"
