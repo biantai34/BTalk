@@ -271,6 +271,13 @@ export const useSettingsStore = defineStore("settings", () => {
       await store.set("groqApiKey", trimmedKey);
       await store.save();
       apiKey.value = trimmedKey;
+
+      const payload: SettingsUpdatedPayload = {
+        key: "apiKey",
+        value: trimmedKey,
+      };
+      await emitEvent(SETTINGS_UPDATED, payload);
+
       console.log("[useSettingsStore] API Key saved");
     } catch (err) {
       console.error(
@@ -329,6 +336,13 @@ export const useSettingsStore = defineStore("settings", () => {
       await store.set("aiPrompt", trimmedPrompt);
       await store.save();
       aiPrompt.value = trimmedPrompt;
+
+      const payload: SettingsUpdatedPayload = {
+        key: "aiPrompt",
+        value: trimmedPrompt,
+      };
+      await emitEvent(SETTINGS_UPDATED, payload);
+
       console.log("[useSettingsStore] AI Prompt saved");
     } catch (err) {
       console.error(
@@ -345,6 +359,12 @@ export const useSettingsStore = defineStore("settings", () => {
       aiPrompt.value = DEFAULT_SYSTEM_PROMPT;
       await store.set("aiPrompt", DEFAULT_SYSTEM_PROMPT);
       await store.save();
+      const payload: SettingsUpdatedPayload = {
+        key: "aiPrompt",
+        value: DEFAULT_SYSTEM_PROMPT,
+      };
+      await emitEvent(SETTINGS_UPDATED, payload);
+
       console.log("[useSettingsStore] AI Prompt reset to default");
     } catch (err) {
       console.error(
@@ -389,27 +409,6 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   }
 
-  async function refreshEnhancementThreshold() {
-    try {
-      const store = await load(STORE_NAME);
-      const savedEnabled = await store.get<boolean>(
-        "enhancementThresholdEnabled",
-      );
-      const savedCharCount = await store.get<number>(
-        "enhancementThresholdCharCount",
-      );
-      isEnhancementThresholdEnabled.value =
-        savedEnabled ?? DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED;
-      enhancementThresholdCharCount.value =
-        savedCharCount ?? DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT;
-    } catch (err) {
-      console.error(
-        "[useSettingsStore] refreshEnhancementThreshold failed:",
-        extractErrorMessage(err),
-      );
-    }
-  }
-
   async function saveLlmModel(id: LlmModelId) {
     try {
       const store = await load(STORE_NAME);
@@ -451,25 +450,6 @@ export const useSettingsStore = defineStore("settings", () => {
         extractErrorMessage(err),
       );
       throw err;
-    }
-  }
-
-  async function refreshModelSelection() {
-    try {
-      const store = await load(STORE_NAME);
-      const savedLlmModelId = await store.get<string>("llmModelId");
-      selectedLlmModelId.value = getEffectiveLlmModelId(
-        savedLlmModelId ?? null,
-      );
-      const savedWhisperModelId = await store.get<string>("whisperModelId");
-      selectedWhisperModelId.value = getEffectiveWhisperModelId(
-        savedWhisperModelId ?? null,
-      );
-    } catch (err) {
-      console.error(
-        "[useSettingsStore] refreshModelSelection failed:",
-        extractErrorMessage(err),
-      );
     }
   }
 
@@ -524,6 +504,62 @@ export const useSettingsStore = defineStore("settings", () => {
         extractErrorMessage(err),
       );
       throw err;
+    }
+  }
+
+  async function refreshCrossWindowSettings() {
+    try {
+      const store = await load(STORE_NAME);
+      const savedKey = await store.get<TriggerKey>("hotkeyTriggerKey");
+      const savedMode = await store.get<TriggerMode>("hotkeyTriggerMode");
+      const savedCustomKey =
+        await store.get<CustomTriggerKey>("customTriggerKey");
+      const savedCustomDomCode = await store.get<string>(
+        "customTriggerKeyDomCode",
+      );
+      const savedApiKey = await store.get<string>("groqApiKey");
+      const savedPrompt = await store.get<string>("aiPrompt");
+      const savedThresholdEnabled = await store.get<boolean>(
+        "enhancementThresholdEnabled",
+      );
+      const savedThresholdCharCount = await store.get<number>(
+        "enhancementThresholdCharCount",
+      );
+      const savedLlmModelId = await store.get<string>("llmModelId");
+      const savedWhisperModelId = await store.get<string>("whisperModelId");
+      const savedMuteOnRecording = await store.get<boolean>("muteOnRecording");
+
+      hotkeyConfig.value = {
+        triggerKey: savedKey ?? getDefaultTriggerKey(),
+        triggerMode: savedMode ?? "hold",
+      };
+      customTriggerKey.value =
+        savedCustomKey && isCustomTriggerKey(savedCustomKey)
+          ? savedCustomKey
+          : null;
+      customTriggerKeyDomCode.value =
+        savedCustomKey && isCustomTriggerKey(savedCustomKey)
+          ? (savedCustomDomCode ?? "")
+          : "";
+      apiKey.value = savedApiKey?.trim() ?? "";
+      aiPrompt.value = savedPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
+      isEnhancementThresholdEnabled.value =
+        savedThresholdEnabled ?? DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED;
+      enhancementThresholdCharCount.value =
+        savedThresholdCharCount ?? DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT;
+      selectedLlmModelId.value = getEffectiveLlmModelId(
+        savedLlmModelId ?? null,
+      );
+      selectedWhisperModelId.value = getEffectiveWhisperModelId(
+        savedWhisperModelId ?? null,
+      );
+      isMuteOnRecordingEnabled.value =
+        savedMuteOnRecording ?? DEFAULT_MUTE_ON_RECORDING;
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] refreshCrossWindowSettings failed:",
+        extractErrorMessage(err),
+      );
     }
   }
 
@@ -584,12 +620,11 @@ export const useSettingsStore = defineStore("settings", () => {
     saveApiKey,
     deleteApiKey,
     saveEnhancementThreshold,
-    refreshEnhancementThreshold,
     saveLlmModel,
     saveWhisperModel,
-    refreshModelSelection,
     isMuteOnRecordingEnabled,
     saveMuteOnRecording,
+    refreshCrossWindowSettings,
     loadAutoStartStatus,
     toggleAutoStart,
     initializeAutoStart,

@@ -37,14 +37,9 @@ onMounted(async () => {
   }
 
   // 監聽設定變更（Main Window 設定異動時同步到 HUD Window）
-  unlistenSettingsUpdated = await listenToEvent(
-    SETTINGS_UPDATED,
-    () => {
-      void settingsStore.refreshApiKey();
-      void settingsStore.refreshEnhancementThreshold();
-      void settingsStore.refreshModelSelection();
-    },
-  );
+  unlistenSettingsUpdated = await listenToEvent(SETTINGS_UPDATED, () => {
+    void settingsStore.refreshCrossWindowSettings();
+  });
 
   // 監聽詞彙變更（Main Window 新增/刪除詞彙時同步）
   unlistenVocabularyChanged = await listenToEvent(

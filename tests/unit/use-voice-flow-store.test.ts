@@ -257,6 +257,10 @@ describe("useVoiceFlowStore", () => {
       "hotkey:error",
       expect.any(Function),
     );
+    expect(mockListen).not.toHaveBeenCalledWith(
+      "cancel:requested",
+      expect.any(Function),
+    );
   });
 
   it("[P0] transitionTo 應處理 HUD 顯示與 success/error 自動收合", async () => {
@@ -719,7 +723,7 @@ describe("useVoiceFlowStore", () => {
       expect(enhancingCalls).toHaveLength(0);
     });
 
-    it("[P0] AI 整理 timeout 應 fallback 至原始文字並顯示「已貼上（未整理）」", async () => {
+    it("[P0] AI 整理 timeout 應 fallback 貼原始文字並顯示「已貼上（未整理）」", async () => {
       const longText = "這是一段超過十個字的測試轉錄文字內容";
       mockTranscribeAudio.mockResolvedValueOnce({
         rawText: longText,
@@ -747,7 +751,7 @@ describe("useVoiceFlowStore", () => {
       expect(store.message).toBe("已貼上（未整理）");
     });
 
-    it("[P0] AI 整理 API 錯誤應 fallback 至原始文字並顯示「已貼上（未整理）」", async () => {
+    it("[P0] AI 整理 API 錯誤應 fallback 貼原始文字並顯示「已貼上（未整理）」", async () => {
       const longText = "這是一段超過十個字的測試轉錄文字內容";
       mockTranscribeAudio.mockResolvedValueOnce({
         rawText: longText,
@@ -1123,7 +1127,7 @@ describe("useVoiceFlowStore", () => {
       });
     });
 
-    it("[P0] AI fallback 貼上後應呼叫 start_quality_monitor", async () => {
+    it("[P0] AI 整理失敗 fallback 後仍應啟動品質監控", async () => {
       const longText = "這是一段超過十個字的測試轉錄文字內容";
       mockTranscribeAudio.mockResolvedValueOnce({
         rawText: longText,
@@ -1289,7 +1293,7 @@ describe("useVoiceFlowStore", () => {
       expect(record.timestamp).toBeGreaterThan(0);
     });
 
-    it("[P0] AI fallback 路徑應呼叫 addTranscription（wasEnhanced=false, processedText=null, enhancementDurationMs 有值）", async () => {
+    it("[P0] AI 整理失敗路徑應呼叫 addTranscription（wasEnhanced=false, processedText=null, enhancementDurationMs 有值）", async () => {
       const longText = "這是一段超過十個字的測試轉錄文字內容";
       mockTranscribeAudio.mockResolvedValueOnce({
         rawText: longText,

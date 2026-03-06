@@ -402,41 +402,43 @@ describe("useSettingsStore", () => {
   });
 
   // ==========================================================================
-  // refreshEnhancementThreshold
+  // refreshCrossWindowSettings
   // ==========================================================================
 
-  describe("refreshEnhancementThreshold", () => {
-    it("[P0] 應從 store 重新讀取 threshold 值", async () => {
-      mockStoreData.set("enhancementThresholdEnabled", false);
-      mockStoreData.set("enhancementThresholdCharCount", 50);
+  describe("refreshCrossWindowSettings", () => {
+    it("[P0] 應整包重新讀取跨視窗會用到的設定", async () => {
+      mockStoreData.set("hotkeyTriggerKey", "command");
+      mockStoreData.set("hotkeyTriggerMode", "toggle");
+      mockStoreData.set("customTriggerKey", { custom: { keycode: 321 } });
+      mockStoreData.set("customTriggerKeyDomCode", "F13");
+      mockStoreData.set("groqApiKey", "  gsk_sync  ");
+      mockStoreData.set("aiPrompt", "  同步後 prompt  ");
+      mockStoreData.set("enhancementThresholdEnabled", true);
+      mockStoreData.set("enhancementThresholdCharCount", 42);
+      mockStoreData.set("llmModelId", "llama-3.3-70b-versatile");
+      mockStoreData.set("whisperModelId", "whisper-large-v3-turbo");
+      mockStoreData.set("muteOnRecording", false);
 
       const { useSettingsStore } = await import(
         "../../src/stores/useSettingsStore"
       );
       const store = useSettingsStore();
 
-      await store.refreshEnhancementThreshold();
+      await store.refreshCrossWindowSettings();
 
-      expect(store.isEnhancementThresholdEnabled).toBe(false);
-      expect(store.enhancementThresholdCharCount).toBe(50);
-    });
-
-    it("[P1] store 無值時應使用預設值", async () => {
-      const {
-        useSettingsStore,
-        DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED,
-        DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT,
-      } = await import("../../src/stores/useSettingsStore");
-      const store = useSettingsStore();
-
-      await store.refreshEnhancementThreshold();
-
-      expect(store.isEnhancementThresholdEnabled).toBe(
-        DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED,
-      );
-      expect(store.enhancementThresholdCharCount).toBe(
-        DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT,
-      );
+      expect(store.hotkeyConfig).toEqual({
+        triggerKey: "command",
+        triggerMode: "toggle",
+      });
+      expect(store.customTriggerKey).toEqual({ custom: { keycode: 321 } });
+      expect(store.customTriggerKeyDomCode).toBe("F13");
+      expect(store.getApiKey()).toBe("gsk_sync");
+      expect(store.getAiPrompt()).toBe("同步後 prompt");
+      expect(store.isEnhancementThresholdEnabled).toBe(true);
+      expect(store.enhancementThresholdCharCount).toBe(42);
+      expect(store.selectedLlmModelId).toBe("llama-3.3-70b-versatile");
+      expect(store.selectedWhisperModelId).toBe("whisper-large-v3-turbo");
+      expect(store.isMuteOnRecordingEnabled).toBe(false);
     });
   });
 });

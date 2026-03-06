@@ -29,6 +29,7 @@ export interface EnhanceOptions {
   systemPrompt?: string;
   vocabularyTermList?: string[];
   modelId?: string;
+  signal?: AbortSignal;
 }
 
 interface GroqChatChoice {
@@ -51,15 +52,39 @@ interface GroqChatResponse {
   usage?: GroqChatUsage;
 }
 
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+async function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  signal?: AbortSignal,
+): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const raceList: Promise<T>[] = [promise];
+
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => reject(new Error("AI 整理逾時")), ms);
   });
+  raceList.push(timeoutPromise as Promise<T>);
+
+  let abortHandler: (() => void) | undefined;
+  if (signal) {
+    const abortPromise = new Promise<never>((_, reject) => {
+      if (signal.aborted) {
+        reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      abortHandler = () =>
+        reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+      signal.addEventListener("abort", abortHandler, { once: true });
+    });
+    raceList.push(abortPromise as Promise<T>);
+  }
+
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race(raceList);
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
+    if (abortHandler && signal)
+      signal.removeEventListener("abort", abortHandler);
   }
 }
 
@@ -127,8 +152,10 @@ export async function enhanceText(
         "Content-Type": "application/json",
       },
       body,
+      signal: options?.signal,
     }),
     ENHANCEMENT_TIMEOUT_MS,
+    options?.signal,
   );
 
   if (!response.ok) {

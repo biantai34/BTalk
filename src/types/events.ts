@@ -18,8 +18,17 @@ export type TranscriptionCompletedPayload = Pick<
   | "wasEnhanced"
 >;
 
+export type SettingsKey =
+  | "hotkey"
+  | "apiKey"
+  | "aiPrompt"
+  | "enhancementThreshold"
+  | "llmModel"
+  | "whisperModel"
+  | "muteOnRecording";
+
 export interface SettingsUpdatedPayload {
-  key: string;
+  key: SettingsKey;
   value: unknown;
 }
 

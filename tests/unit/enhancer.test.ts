@@ -116,6 +116,19 @@ describe("enhancer.ts", () => {
 
       expect(result.text).toBe("整理後文字有空白");
     });
+
+    it("[P1] 傳入 signal 時應轉交給 fetch", async () => {
+      mockFetch.mockResolvedValue(createSuccessResponse("整理後文字"));
+
+      const { enhanceText } = await import("../../src/lib/enhancer");
+      const abortController = new AbortController();
+      await enhanceText("測試輸入文字", TEST_API_KEY, {
+        signal: abortController.signal,
+      });
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[1].signal).toBe(abortController.signal);
+    });
   });
 
   describe("API Key 驗證", () => {

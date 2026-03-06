@@ -12,6 +12,7 @@ import {
   getMicrophoneErrorMessage,
   getTranscriptionErrorMessage,
 } from "../lib/errorUtils";
+import { captureError } from "../lib/sentry";
 import { enhanceText } from "../lib/enhancer";
 import { useVocabularyStore } from "./useVocabularyStore";
 import { useHistoryStore } from "./useHistoryStore";
@@ -91,8 +92,8 @@ function isSilenceOrHallucination(
 const RECORDING_MESSAGE = "錄音中...";
 const TRANSCRIBING_MESSAGE = "轉錄中...";
 const PASTE_SUCCESS_MESSAGE = "已貼上 ✓";
-const ENHANCING_MESSAGE = "整理中...";
 const PASTE_SUCCESS_UNENHANCED_MESSAGE = "已貼上（未整理）";
+const ENHANCING_MESSAGE = "整理中...";
 
 const MONITOR_POLL_INTERVAL_MS = 250;
 
@@ -343,11 +344,18 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     }
   }
 
-  function failRecordingFlow(errorMessage: string, logMessage: string) {
+  function failRecordingFlow(
+    errorMessage: string,
+    logMessage: string,
+    error?: unknown,
+  ) {
     restoreSystemAudio();
     isRecording.value = false;
     transitionTo("error", errorMessage);
     writeErrorLog(logMessage);
+    if (error) {
+      captureError(error, { userMessage: errorMessage, source: "voice-flow" });
+    }
   }
 
   async function completePasteFlow(params: {
@@ -368,6 +376,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       failRecordingFlow(
         "貼上失敗",
         `useVoiceFlowStore: paste_text failed: ${extractErrorMessage(pasteError)}`,
+        pasteError,
       );
     }
   }
@@ -454,6 +463,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       failRecordingFlow(
         errorMessage,
         `useVoiceFlowStore: start recording failed: ${technicalErrorMessage}`,
+        error,
       );
     }
   }
@@ -535,6 +545,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
               vocabularyTermList.length > 0 ? vocabularyTermList : undefined,
             modelId: settingsStore.selectedLlmModelId,
           });
+
           const enhancementDurationMs =
             performance.now() - enhancementStartTime;
 
@@ -570,6 +581,10 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
           writeErrorLog(
             `useVoiceFlowStore: AI enhancement failed: ${enhanceErrorDetail}`,
           );
+          captureError(enhanceError, {
+            source: "voice-flow",
+            step: "enhancement",
+          });
 
           const fallbackRecord = buildTranscriptionRecord({
             rawText: result.rawText,
@@ -616,6 +631,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       failRecordingFlow(
         userMessage,
         `useVoiceFlowStore: stop recording failed: ${technicalMessage}`,
+        error,
       );
     }
   }
