@@ -5,7 +5,6 @@ import { Window, getCurrentWindow } from "@tauri-apps/api/window";
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import {
-  API_KEY_MISSING_ERROR,
   extractErrorMessage,
   getEnhancementErrorMessage,
   getHotkeyErrorMessage,
@@ -14,6 +13,7 @@ import {
 } from "../lib/errorUtils";
 import { captureError } from "../lib/sentry";
 import { enhanceText } from "../lib/enhancer";
+import i18n from "../i18n";
 import { useVocabularyStore } from "./useVocabularyStore";
 import { useHistoryStore } from "./useHistoryStore";
 import type {
@@ -46,7 +46,6 @@ import { useSettingsStore } from "./useSettingsStore";
 
 const SUCCESS_DISPLAY_DURATION_MS = 1000;
 const ERROR_DISPLAY_DURATION_MS = 3000;
-const EMPTY_TRANSCRIPTION_ERROR_MESSAGE = "未偵測到語音";
 const NO_SPEECH_PROBABILITY_THRESHOLD = 0.9;
 
 const WHISPER_HALLUCINATION_PHRASES = new Set([
@@ -104,15 +103,19 @@ function isSilenceOrHallucination(
   if (WHISPER_HALLUCINATION_PHRASES.has(rawText)) return true;
   if (WHISPER_HALLUCINATION_SUBSTRINGS.some((sub) => rawText.includes(sub)))
     return true;
-  // 語言設定為 zh 但輸出完全沒有中文字元 → 極可能幻覺
-  if (!CJK_REGEX.test(rawText) && hasRepeatedTokens(rawText)) return true;
+  // CJK check only when Whisper language is "zh"
+  const settingsStore = useSettingsStore();
+  if (
+    settingsStore.getWhisperLanguageCode() === "zh" &&
+    !CJK_REGEX.test(rawText) &&
+    hasRepeatedTokens(rawText)
+  )
+    return true;
   return false;
 }
-const RECORDING_MESSAGE = "錄音中...";
-const TRANSCRIBING_MESSAGE = "轉錄中...";
-const PASTE_SUCCESS_MESSAGE = "已貼上 ✓";
-const PASTE_SUCCESS_UNENHANCED_MESSAGE = "已貼上（未整理）";
-const ENHANCING_MESSAGE = "整理中...";
+function t(key: string, params?: Record<string, unknown>): string {
+  return i18n.global.t(key, params ?? {});
+}
 
 const MONITOR_POLL_INTERVAL_MS = 250;
 
@@ -391,7 +394,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     } catch (pasteError) {
       isRecording.value = false;
       failRecordingFlow(
-        "貼上失敗",
+        t("voiceFlow.pasteFailed"),
         `useVoiceFlowStore: paste_text failed: ${extractErrorMessage(pasteError)}`,
         pasteError,
       );
@@ -466,7 +469,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         invoke("start_recording"),
       ]);
       startElapsedTimer();
-      transitionTo("recording", RECORDING_MESSAGE);
+      transitionTo("recording", t("voiceFlow.recording"));
       writeInfoLog("useVoiceFlowStore: recording started");
     } catch (error) {
       const errorMessage = getMicrophoneErrorMessage(error);
@@ -492,13 +495,13 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       const MINIMUM_RECORDING_DURATION_MS = 300;
       if (recordingDurationMs < MINIMUM_RECORDING_DURATION_MS) {
         failRecordingFlow(
-          "錄音時間太短",
+          t("voiceFlow.recordingTooShort"),
           `useVoiceFlowStore: recording too short (${Math.round(recordingDurationMs)}ms)`,
         );
         return;
       }
 
-      transitionTo("transcribing", TRANSCRIBING_MESSAGE);
+      transitionTo("transcribing", t("voiceFlow.transcribing"));
       const settingsStore = useSettingsStore();
       let apiKey = settingsStore.getApiKey();
 
@@ -509,7 +512,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
       if (!apiKey) {
         failRecordingFlow(
-          API_KEY_MISSING_ERROR,
+          t("errors.apiKeyMissing"),
           "useVoiceFlowStore: missing API key while transcribing",
         );
         return;
@@ -525,6 +528,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         apiKey,
         vocabularyTermList: hasVocabulary ? vocabularyTermList : null,
         modelId: settingsStore.selectedWhisperModelId,
+        language: settingsStore.getWhisperLanguageCode(),
       });
 
       writeInfoLog(`轉錄原文: "${result.rawText}"`);
@@ -533,7 +537,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         isSilenceOrHallucination(result.rawText, result.noSpeechProbability)
       ) {
         failRecordingFlow(
-          EMPTY_TRANSCRIPTION_ERROR_MESSAGE,
+          t("voiceFlow.noSpeechDetected"),
           `useVoiceFlowStore: silence detected (noSpeechProb=${result.noSpeechProbability.toFixed(3)}, text="${result.rawText}")`,
         );
         return;
@@ -543,7 +547,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         !settingsStore.isEnhancementThresholdEnabled ||
         result.rawText.length >= settingsStore.enhancementThresholdCharCount
       ) {
-        transitionTo("enhancing", ENHANCING_MESSAGE);
+        transitionTo("enhancing", t("voiceFlow.enhancing"));
         const enhancementStartTime = performance.now();
 
         try {
@@ -570,7 +574,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
           await completePasteFlow({
             text: enhanceResult.text,
-            successMessage: PASTE_SUCCESS_MESSAGE,
+            successMessage: t("voiceFlow.pasteSuccess"),
             record,
             chatUsage: enhanceResult.usage,
           });
@@ -605,7 +609,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
           await completePasteFlow({
             text: result.rawText,
-            successMessage: PASTE_SUCCESS_UNENHANCED_MESSAGE,
+            successMessage: t("voiceFlow.pasteSuccessUnenhanced"),
             record: fallbackRecord,
             chatUsage: null,
           });
@@ -622,7 +626,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
         await completePasteFlow({
           text: result.rawText,
-          successMessage: PASTE_SUCCESS_MESSAGE,
+          successMessage: t("voiceFlow.pasteSuccess"),
           record,
           chatUsage: null,
         });

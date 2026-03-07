@@ -2,6 +2,7 @@ import {
   getHotkeyConflictWarning,
   getHotkeyCapslockWarning,
 } from "./errorUtils";
+import i18n from "../i18n";
 
 /**
  * DOM event.code → 平台原生 keycode 映射模組
@@ -496,7 +497,9 @@ export function getDangerousKeyWarning(domCode: string): string | null {
       ScrollLock: "F14",
       Pause: "F15",
     };
-    return `此按鍵在 macOS 上與 ${collisionMap[domCode]} 共用相同代碼，兩者會同時觸發`;
+    return i18n.global.t("errors.hotkey.keycodeCollision", {
+      target: collisionMap[domCode],
+    });
   }
 
   const displayName = getKeyDisplayName(domCode);

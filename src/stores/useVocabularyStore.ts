@@ -5,6 +5,7 @@ import { extractErrorMessage } from "../lib/errorUtils";
 import { emitEvent, VOCABULARY_CHANGED } from "../composables/useTauriEvents";
 import type { VocabularyEntry } from "../types/vocabulary";
 import type { VocabularyChangedPayload } from "../types/events";
+import i18n from "../i18n";
 
 interface RawVocabularyRow {
   id: string;
@@ -56,7 +57,7 @@ export const useVocabularyStore = defineStore("vocabulary", () => {
     if (!trimmedTerm) return;
 
     if (isDuplicateTerm(trimmedTerm)) {
-      throw new Error("此詞彙已存在");
+      throw new Error(i18n.global.t("dictionary.duplicateEntry"));
     }
 
     const id = crypto.randomUUID();
@@ -74,7 +75,7 @@ export const useVocabularyStore = defineStore("vocabulary", () => {
     } catch (error) {
       const message = extractErrorMessage(error);
       if (message.includes("UNIQUE")) {
-        throw new Error("此詞彙已存在");
+        throw new Error(i18n.global.t("dictionary.duplicateEntry"));
       }
       console.error(`[vocabulary-store] addTerm failed: ${message}`);
       throw error;

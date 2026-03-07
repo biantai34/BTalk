@@ -101,6 +101,7 @@ pub async fn transcribe_audio(
     api_key: String,
     vocabulary_term_list: Option<Vec<String>>,
     model_id: Option<String>,
+    language: Option<String>,
 ) -> Result<TranscriptionResult, TranscriptionError> {
     if api_key.trim().is_empty() {
         return Err(TranscriptionError::ApiKeyMissing);
@@ -138,7 +139,7 @@ pub async fn transcribe_audio(
     let mut form = reqwest::multipart::Form::new()
         .part("file", file_part)
         .text("model", model)
-        .text("language", TRANSCRIPTION_LANGUAGE)
+        .text("language", language.unwrap_or_else(|| TRANSCRIPTION_LANGUAGE.to_string()))
         .text("response_format", "verbose_json");
 
     if let Some(ref terms) = vocabulary_term_list {

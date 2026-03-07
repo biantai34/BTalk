@@ -22,7 +22,16 @@ import {
   getHotkeyUnsupportedKeyMessage,
   getHotkeyPresetHint,
 } from "../lib/errorUtils";
-import { DEFAULT_SYSTEM_PROMPT } from "../lib/enhancer";
+import { getDefaultSystemPrompt } from "../lib/enhancer";
+import { getDefaultPromptForLocale } from "../i18n/prompts";
+import i18n from "../i18n";
+import {
+  type SupportedLocale,
+  FALLBACK_LOCALE,
+  detectSystemLocale,
+  getHtmlLangForLocale,
+  getWhisperCodeForLocale,
+} from "../i18n/languageConfig";
 import { emitEvent, SETTINGS_UPDATED } from "../composables/useTauriEvents";
 import type { SettingsUpdatedPayload } from "../types/events";
 import {
@@ -64,7 +73,7 @@ export const useSettingsStore = defineStore("settings", () => {
   );
   const apiKey = ref<string>("");
   const hasApiKey = computed(() => apiKey.value !== "");
-  const aiPrompt = ref<string>(DEFAULT_SYSTEM_PROMPT);
+  const aiPrompt = ref<string>(getDefaultSystemPrompt());
   const isAutoStartEnabled = ref(false);
   const isEnhancementThresholdEnabled = ref(
     DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED,
@@ -77,6 +86,7 @@ export const useSettingsStore = defineStore("settings", () => {
   const customTriggerKey = ref<CustomTriggerKey | null>(null);
   const isMuteOnRecordingEnabled = ref<boolean>(DEFAULT_MUTE_ON_RECORDING);
   const customTriggerKeyDomCode = ref<string>("");
+  const selectedLocale = ref<SupportedLocale>(FALLBACK_LOCALE);
   let isLoaded = false;
 
   function getApiKey(): string {
@@ -124,8 +134,24 @@ export const useSettingsStore = defineStore("settings", () => {
         customTriggerKeyDomCode.value = savedCustomDomCode ?? "";
       }
 
+      // Load locale (first launch: detect system language, upgrade: fallback to zh-TW)
+      const savedLocale = await store.get<SupportedLocale>("selectedLocale");
+      if (savedLocale) {
+        selectedLocale.value = savedLocale;
+      } else {
+        const detected = detectSystemLocale();
+        selectedLocale.value = detected;
+        await store.set("selectedLocale", detected);
+        await store.save();
+      }
+      i18n.global.locale.value = selectedLocale.value;
+      document.documentElement.lang = getHtmlLangForLocale(
+        selectedLocale.value,
+      );
+
       const savedPrompt = await store.get<string>("aiPrompt");
-      aiPrompt.value = savedPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
+      aiPrompt.value =
+        savedPrompt?.trim() || getDefaultPromptForLocale(selectedLocale.value);
 
       const savedThresholdEnabled = await store.get<boolean>(
         "enhancementThresholdEnabled",
@@ -257,13 +283,15 @@ export const useSettingsStore = defineStore("settings", () => {
     if (customTriggerKeyDomCode.value) {
       return getKeyDisplayName(customTriggerKeyDomCode.value);
     }
-    return `自訂鍵 (${key.custom.keycode})`;
+    return i18n.global.t("settings.hotkey.customKeyDisplay", {
+      keycode: key.custom.keycode,
+    });
   }
 
   async function saveApiKey(key: string) {
     const trimmedKey = key.trim();
     if (trimmedKey === "") {
-      throw new Error("API Key 不可為空白");
+      throw new Error(i18n.global.t("errors.apiKeyEmpty"));
     }
 
     try {
@@ -328,7 +356,7 @@ export const useSettingsStore = defineStore("settings", () => {
   async function saveAiPrompt(prompt: string) {
     const trimmedPrompt = prompt.trim();
     if (trimmedPrompt === "") {
-      throw new Error("Prompt 不可為空白");
+      throw new Error(i18n.global.t("errors.promptEmpty"));
     }
 
     try {
@@ -356,12 +384,13 @@ export const useSettingsStore = defineStore("settings", () => {
   async function resetAiPrompt() {
     try {
       const store = await load(STORE_NAME);
-      aiPrompt.value = DEFAULT_SYSTEM_PROMPT;
-      await store.set("aiPrompt", DEFAULT_SYSTEM_PROMPT);
+      const defaultPrompt = getDefaultPromptForLocale(selectedLocale.value);
+      aiPrompt.value = defaultPrompt;
+      await store.set("aiPrompt", defaultPrompt);
       await store.save();
       const payload: SettingsUpdatedPayload = {
         key: "aiPrompt",
-        value: DEFAULT_SYSTEM_PROMPT,
+        value: defaultPrompt,
       };
       await emitEvent(SETTINGS_UPDATED, payload);
 
@@ -485,6 +514,45 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   }
 
+  async function saveLocale(locale: SupportedLocale) {
+    try {
+      const store = await load(STORE_NAME);
+      const oldLocale = selectedLocale.value;
+
+      await store.set("selectedLocale", locale);
+      selectedLocale.value = locale;
+      i18n.global.locale.value = locale;
+      document.documentElement.lang = getHtmlLangForLocale(locale);
+
+      // Prompt auto-switch: if current prompt equals old locale's default, update to new
+      const oldDefault = getDefaultPromptForLocale(oldLocale);
+      if (aiPrompt.value === oldDefault) {
+        const newDefault = getDefaultPromptForLocale(locale);
+        aiPrompt.value = newDefault;
+        await store.set("aiPrompt", newDefault);
+      }
+
+      await store.save();
+
+      const payload: SettingsUpdatedPayload = {
+        key: "locale",
+        value: locale,
+      };
+      await emitEvent(SETTINGS_UPDATED, payload);
+      console.log(`[useSettingsStore] Locale saved: ${locale}`);
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] saveLocale failed:",
+        extractErrorMessage(err),
+      );
+      throw err;
+    }
+  }
+
+  function getWhisperLanguageCode(): string {
+    return getWhisperCodeForLocale(selectedLocale.value);
+  }
+
   async function saveMuteOnRecording(enabled: boolean) {
     try {
       const store = await load(STORE_NAME);
@@ -541,8 +609,17 @@ export const useSettingsStore = defineStore("settings", () => {
         savedCustomKey && isCustomTriggerKey(savedCustomKey)
           ? (savedCustomDomCode ?? "")
           : "";
+      // Locale must be synced first — aiPrompt fallback depends on it
+      const savedLocale = await store.get<SupportedLocale>("selectedLocale");
+      selectedLocale.value = savedLocale ?? FALLBACK_LOCALE;
+      i18n.global.locale.value = selectedLocale.value;
+      document.documentElement.lang = getHtmlLangForLocale(
+        selectedLocale.value,
+      );
+
       apiKey.value = savedApiKey?.trim() ?? "";
-      aiPrompt.value = savedPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
+      aiPrompt.value =
+        savedPrompt?.trim() || getDefaultPromptForLocale(selectedLocale.value);
       isEnhancementThresholdEnabled.value =
         savedThresholdEnabled ?? DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED;
       enhancementThresholdCharCount.value =
@@ -624,6 +701,9 @@ export const useSettingsStore = defineStore("settings", () => {
     saveWhisperModel,
     isMuteOnRecordingEnabled,
     saveMuteOnRecording,
+    selectedLocale,
+    saveLocale,
+    getWhisperLanguageCode,
     refreshCrossWindowSettings,
     loadAutoStartStatus,
     toggleAutoStart,
