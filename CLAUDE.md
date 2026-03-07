@@ -218,10 +218,10 @@
 | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | 私鑰密碼 |
 | `APPLE_CERTIFICATE` | Developer ID .p12 (Base64) |
 | `APPLE_CERTIFICATE_PASSWORD` | .p12 密碼 |
-| `APPLE_SIGNING_IDENTITY` | `Developer ID Application: Tai-Cheng Chen (G9J8D2T6DV)` |
+| `APPLE_SIGNING_IDENTITY` | Developer ID signing identity（見 GitHub Secrets） |
 | `APPLE_ID` | Apple ID email |
 | `APPLE_PASSWORD` | App-Specific Password |
-| `APPLE_TEAM_ID` | `G9J8D2T6DV` |
+| `APPLE_TEAM_ID` | Apple Developer Team ID（見 GitHub Secrets） |
 | `SENTRY_DSN` | Rust 正式版 Sentry DSN |
 | `VITE_SENTRY_DSN` | Frontend 正式版 Sentry DSN |
 | `SENTRY_AUTH_TOKEN` | Sentry sourcemap upload token |

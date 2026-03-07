@@ -297,7 +297,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 4. 使用者的 App 自動偵測並提示更新
 
 **Code Signing（已實作）：**
-- macOS：Developer ID Application — `Tai-Cheng Chen (G9J8D2T6DV)`，含 Notarization
+- macOS：Developer ID Application（見 GitHub Secrets），含 Notarization
 - Windows：暫無 EV code signing certificate，初期使用者手動信任
 
 **安裝包格式：**

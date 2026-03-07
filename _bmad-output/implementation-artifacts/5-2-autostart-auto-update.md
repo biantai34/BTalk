@@ -309,23 +309,11 @@ setTimeout(async () => {
 
 ### tauri signer 金鑰產生
 
-開發者需一次性執行：
+開發者需一次性執行 `pnpm tauri signer generate` 產生 key pair：
+- Private key：存放於本機安全位置（不入版控）
+- Public key：填入 `tauri.conf.json` 的 `plugins.updater.pubkey`
 
-```bash
-pnpm tauri signer generate -w ~/.tauri/sayit.key
-```
-
-這會產生：
-- Private key: `~/.tauri/sayit.key`（build 時使用，不入版控）
-- Public key: 輸出到終端（填入 tauri.conf.json plugins.updater.pubkey）
-
-Build 時設定環境變數：
-
-```bash
-TAURI_SIGNING_PRIVATE_KEY=$(cat ~/.tauri/sayit.key) \
-TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" \
-pnpm tauri build
-```
+Build 時透過環境變數注入 signing key（路徑與密碼見本機設定或 GitHub Secrets，勿寫入版控）。
 
 ### 不需修改的檔案
 
