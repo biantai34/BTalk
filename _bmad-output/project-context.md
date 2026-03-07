@@ -2,9 +2,9 @@
 project_name: 'sayit'
 user_name: 'Jackle'
 date: '2026-03-08'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry']
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n']
 status: 'complete'
-rule_count: 126
+rule_count: 145
 optimized_for_llm: true
 ---
 
@@ -47,6 +47,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 | `@unovis/ts` + `@unovis/vue` | ^1.6.4 | 圖表庫（shadcn-vue chart 底層） |
 | `class-variance-authority` | ^0.7.1 | CSS 變體管理（shadcn-vue 依賴） |
 | `clsx` + `tailwind-merge` | ^2.1.1 / ^3.5.0 | `cn()` 工具函式底層（`src/lib/utils.ts`） |
+| `vue-i18n` | ^11.3.0 | 多語言國際化（Composition API `useI18n()` + 全域 `i18n.global.t()`） |
 | `@faker-js/faker` | ^10.3.0 | 開發用假資料（devDependency） |
 
 ### ⚠️ 已安裝但不應使用
@@ -80,7 +81,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 ### External APIs
 
-- Groq Whisper API — `https://api.groq.com/openai/v1/audio/transcriptions`（預設模型：`whisper-large-v3`，語言：`zh`，可選 `whisper-large-v3-turbo`）
+- Groq Whisper API — `https://api.groq.com/openai/v1/audio/transcriptions`（預設模型：`whisper-large-v3`，語言：動態由前端 `getWhisperLanguageCode()` 傳入、Rust fallback `"zh"`，可選 `whisper-large-v3-turbo`）
 - Groq LLM API — `https://api.groq.com/openai/v1/chat/completions`（預設模型：`llama-3.3-70b-versatile`，支援 7 個模型切換，temperature: 0.3，timeout: 5s）
 - **模型註冊** — `src/lib/modelRegistry.ts` 集中管理所有可用模型、價格、免費配額，支援模型下架自動遷移（`DECOMMISSIONED_MODEL_MAP`）
 - CSP 白名單：`connect-src 'self' https://api.groq.com`
@@ -127,7 +128,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **環境變數前綴** — 前端環境變數必須以 `VITE_` 或 `TAURI_` 開頭
 - **編譯時常數** — `__APP_VERSION__`（Vite `define`，值來自 `package.json` version），用於 UI 顯示版本號
 - **錯誤訊息格式** — `err instanceof Error ? err.message : String(err)` 作為標準錯誤取值模式（使用 `extractErrorMessage()` from `errorUtils.ts`）
-- **錯誤訊息本地化** — 使用 `src/lib/errorUtils.ts` 集中管理使用者可見的錯誤訊息（繁體中文），按功能分函式：`getMicrophoneErrorMessage()`, `getTranscriptionErrorMessage()`, `getEnhancementErrorMessage()`
+- **錯誤訊息本地化** — 使用 `src/lib/errorUtils.ts` 集中管理使用者可見的錯誤訊息，透過 `i18n.global.t('errors.xxx')` 動態翻譯（支援 5 種語言），按功能分函式：`getMicrophoneErrorMessage()`, `getTranscriptionErrorMessage()`, `getEnhancementErrorMessage()`
+- **結構化 Error class** — `EnhancerApiError extends Error` 帶 `statusCode` 屬性，`errorUtils.ts` 用 `instanceof EnhancerApiError` 檢查取代字串解析。新增 lib 層錯誤 class 時必須帶語意屬性（如 `statusCode`、`code`），禁止將結構化資訊編碼在 `message` 字串中
 
 #### Rust
 
@@ -212,6 +214,20 @@ _This file contains critical rules and patterns that AI agents must follow when 
 | `quality-monitor:result` | `QUALITY_MONITOR_RESULT` | Rust → HUD | `QualityMonitorResultPayload` |
 | `audio:waveform` | `AUDIO_WAVEFORM` | Rust → HUD | `WaveformPayload { levels: [f32; 6] }` |
 
+#### i18n 多語言（vue-i18n）
+
+- **支援語言** — zh-TW（繁體中文，fallback）、en（英文，vue-i18n fallbackLocale）、ja、zh-CN、ko
+- **雙視窗 instance** — HUD 和 Dashboard 各自建立獨立的 `createI18n()` instance（不是 singleton），語言切換透過 `emitEvent(SETTINGS_UPDATED, { key: "locale" })` + `refreshCrossWindowSettings()` 同步
+- **Vue 元件翻譯** — `const { t } = useI18n()` + template 中 `$t('key')` / `{{ t('key') }}`
+- **lib/store 層翻譯** — `i18n.global.t('key', params)` — 因為不在 Vue 元件 setup 中，不能用 `useI18n()`
+- **翻譯檔案** — `src/i18n/locales/{locale}.json`，key 結構按功能分組（`settings.*`, `dashboard.*`, `errors.*`, `voiceFlow.*` 等），5 個檔案的 key 集合必須完全一致
+- **AI Prompt 多語言** — `src/i18n/prompts.ts` 集中管理各語言預設 prompt（prompt 過長不適合 JSON），`getDefaultPromptForLocale(locale)` 取得對應語言版本
+- **語言偵測** — `detectSystemLocale()` 5 層匹配：精確 → script subtag（`zh-Hant` → `zh-TW`）→ 語言前綴 → 裸 `zh` → fallback `zh-TW`（保護既有中文使用者升級路徑）
+- **Whisper 語言連動** — UI 語言切換時，`getWhisperLanguageCode()` 回傳對應 Whisper code（zh-TW/zh-CN → `"zh"`），傳入 Rust `transcribe_audio` 的 `language` 參數
+- **Prompt 切換連動** — 語言切換時，若 `aiPrompt` 等於舊語言預設值，自動更新為新語言預設；已自訂則保留
+- **HTML lang 屬性** — `document.documentElement.lang` 隨 locale 更新（zh-TW → `zh-Hant`、zh-CN → `zh-Hans`）
+- **幻覺檢測語言感知** — `isSilenceOrHallucination()` 的 CJK 檢查僅在 `getWhisperLanguageCode() === "zh"` 時啟用，避免英文/日文/韓文正常轉錄被誤殺
+
 #### Tailwind CSS v4
 
 - **入口語法** — `@import "tailwindcss"`（非 v3 的 @tailwind 指令）
@@ -285,12 +301,16 @@ _This file contains critical rules and patterns that AI agents must follow when 
 | `factories.test.ts` | 測試資料工廠 |
 | `types.test.ts` | 型別定義驗證 |
 | `NotchHud.test.ts`（component） | HUD 元件 6 態顯示 |
+| `i18n-settings.test.ts` | 語言偵測、locale 儲存/載入、Whisper code 映射、prompt 連動、翻譯檔 key 一致性 |
 | `AccessibilityGuide.test.ts`（component） | 輔助使用權限引導 |
+| `i18n-smoke.test.ts`（component） | mount View + 切換 locale + 斷言 UI 文字切換 |
 | `smoke.test.ts`（e2e） | 端對端冒煙測試 |
 
 #### 測試規則
 
 - **不主動新增測試** — 除非 Story 明確要求或使用者指示，AI agents 不應自行建立測試
+- **i18n mock 模式** — 測試 store/lib 時需 mock `src/i18n`（回傳 `{ global: { locale: { value: "zh-TW" }, t: (key) => key } }`）和 `src/i18n/prompts`、`src/i18n/languageConfig`
+- **元件測試 i18n 掛載** — mount 元件時必須在 `global.plugins` 加入 i18n instance（`createI18n({ legacy: false, locale: "zh-TW", messages: { "zh-TW": zhTW } })`）
 - **型別檢查作為品質門檻** — `vue-tsc --noEmit` 是 build 前自動執行的品質檢查
 - **手動驗證重點** — E2E 流程：熱鍵觸發 → 錄音 → 轉錄 → (AI 整理) → 貼上，以及 HUD 狀態轉換
 - **假資料** — 使用 `@faker-js/faker` 生成測試/開發用資料
@@ -321,7 +341,8 @@ _This file contains critical rules and patterns that AI agents must follow when 
 | TS 變數/函式 | camelCase | `startRecording()`, `enhancedText` |
 | TS 型別/介面 | PascalCase + 後綴 | `TranscriptionRecord`, `HotkeyConfig`, `WaveformPayload`, `StopRecordingResult` |
 | TS 布林變數 | is/has/can/should 前綴 | `isRecording`, `wasEnhanced`, `hasApiKey` |
-| TS 常數 | UPPER_SNAKE_CASE | `DEFAULT_SYSTEM_PROMPT`, `ENHANCEMENT_TIMEOUT_MS` |
+| TS 常數 | UPPER_SNAKE_CASE | `FALLBACK_LOCALE`, `ENHANCEMENT_TIMEOUT_MS` |
+| TS Error class | PascalCase + Error 後綴 | `EnhancerApiError` |
 | Rust 函式/變數 | snake_case | `paste_text()`, `listen_hotkey()` |
 | Rust 型別/Struct | PascalCase | `ClipboardError`, `HotkeyConfig` |
 | SQLite table | 複數 snake_case | `transcriptions`, `vocabulary` |
@@ -340,6 +361,14 @@ src/
 │   ├── DashboardUsageChart.vue # API 用量趨勢圖表（unovis）
 │   ├── Nav*.vue / SiteHeader.vue # 導覽元件群（shadcn blocks）
 │   └── ui/              # shadcn-vue CLI 生成元件（不手動修改）
+├── i18n/                    # 多語言國際化
+│   ├── index.ts             # createI18n() instance（非 singleton，各 WebView 獨立）
+│   ├── languageConfig.ts    # SupportedLocale 型別、LANGUAGE_OPTIONS、detectSystemLocale()
+│   ├── prompts.ts           # 各語言預設 AI Prompt（getDefaultPromptForLocale）
+│   └── locales/             # 翻譯 JSON 檔（5 語言，key 結構必須一致）
+│       ├── zh-TW.json       # 繁體中文（基準語言）
+│       ├── en.json          # English（vue-i18n fallbackLocale）
+│       ├── ja.json, zh-CN.json, ko.json
 ├── composables/          # Vue composables（跨元件邏輯）
 │   ├── useTauriEvents.ts    # Tauri Event 常量 + 封裝
 │   ├── useFeedbackMessage.ts # 臨時回饋訊息模式
@@ -490,6 +519,10 @@ src/
 - **❌ mount 前未初始化 DB** — `main-window.ts` 中 `app.mount()` 會觸發所有元件的 `onMounted`，若 DB 尚未初始化，Store 的 `getDatabase()` 會拋錯且被 try-catch 靜默吞掉
 - **❌ 每次轉錄重建/銷毀 CGEventTap** — `keyboard_monitor` 必須使用持久 CGEventTap/Hook 模式：App 啟動時建立一次，靠 `is_monitoring: AtomicBool` flag 控制是否處理事件。重複建立/銷毀 CGEventTap 會產生幽靈按鍵（ghost Enter key），這是已確認的 bug 根因
 - **❌ `RunEvent::Exit` 中用 `state()` 取 managed state** — 必須用 `try_state::<T>()` + `if let Some(state)` 模式，避免 state 未註冊時 panic
+- **❌ 硬編碼使用者可見字串** — 所有使用者看得到的文字必須使用 i18n 翻譯鍵（Vue 元件用 `$t()` / `t()`，lib/store 用 `i18n.global.t()`），禁止中文/英文硬編碼。程式碼註解和日誌不需翻譯
+- **❌ 字串解析提取結構化資訊** — 禁止用 regex 從 `error.message` 提取 status code 等資訊（如 `match(/：(\d+)/)`），必須用 Error class 屬性（如 `EnhancerApiError.statusCode`）
+- **❌ 在 lib 層使用 `useI18n()`** — `useI18n()` 只能在 Vue 元件 `<script setup>` 中使用，lib/store 層必須用 `i18n.global.t()`
+- **❌ 新增翻譯鍵但不同步所有 locale 檔案** — 5 個 locale JSON 的 key 結構必須完全一致，新增鍵時必須同時更新所有檔案
 
 #### 資料映射陷阱
 
@@ -552,4 +585,4 @@ src/
 - Review periodically for outdated rules
 - Remove rules that become obvious over time
 
-Last Updated: 2026-03-08 (v3 — Graceful Shutdown、Persistent Event Tap 模式)
+Last Updated: 2026-03-08 (v4 — i18n 多語言、EnhancerApiError 結構化錯誤)
