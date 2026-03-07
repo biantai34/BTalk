@@ -38,7 +38,7 @@ lastSaved: '2026-03-01'
 - **前端框架**: Vue 3 Composition API
 - **建構工具**: Vite 6.4.1
 - **CSS**: Tailwind CSS 4.2.1
-- **後端**: Rust (arboard, enigo, serde, core-graphics, tauri-plugin-http/shell)
+- **後端**: Rust (arboard, AX API / SendInput, serde, core-graphics, tauri-plugin-http/shell)
 - **Source 檔案**: 9 個 (Vue 元件, composables, services, types)
 - **既有測試**: 無 (零覆蓋)
 - **架構文件**: `_bmad-output/planning-artifacts/architecture.md` (complete)

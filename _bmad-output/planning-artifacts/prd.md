@@ -268,7 +268,7 @@ SayIt 是一款常駐 System Tray 的跨平台桌面應用，使用 Tauri v2 框
 | 前端 | Vue 3 + TypeScript + Tailwind | 同左 |
 | 全域熱鍵 | `rdev` crate（預設 Fn） | `rdev` crate（預設右 Alt） |
 | 剪貼簿 | `arboard` crate | `arboard` crate |
-| 鍵盤模擬 | `enigo` / `core-graphics`（Cmd+V） | `enigo`（Ctrl+V） |
+| 自動貼上 | AX API menu press（Cmd+V） | SendInput（Ctrl+V） |
 | 資料庫 | `tauri-plugin-sql`（SQLite） | 同左 |
 | 狀態管理 | Pinia | 同左 |
 
@@ -293,7 +293,7 @@ SayIt 是一款常駐 System Tray 的跨平台桌面應用，使用 Tauri v2 框
 |----------|---------|------|
 | 全域熱鍵監聽 | `rdev` crate | 跨平台統一，支援多種修飾鍵 |
 | 剪貼簿操作 | `arboard` crate | 備份→寫入→模擬貼上 |
-| 鍵盤模擬 | `enigo` / `core-graphics` | macOS: Cmd+V / Windows: Ctrl+V |
+| 自動貼上 | AX API menu press / SendInput | macOS: AXPress Paste menu / Windows: Ctrl+V |
 | System Tray | Tauri 內建 | 常駐、右鍵選單、開啟 Main Window |
 | Accessibility 權限 | macOS CGEventTap | 首次啟動引導授權 |
 | 麥克風權限 | WebView `getUserMedia` | 首次錄音時系統提示 |

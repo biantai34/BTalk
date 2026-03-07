@@ -157,7 +157,7 @@ inputDocuments:
 | 檔案 | 責任 | 風險 | 可測試邏輯 |
 |------|------|------|-----------|
 | `src-tauri/src/plugins/fn_key_listener.rs` | Fn 鍵監聽 (CGEventTap) | 🔴 高 | 權限檢查、事件偵測、原子旗標管理 |
-| `src-tauri/src/plugins/clipboard_paste.rs` | 剪貼簿貼上 | 🔴 高 | 剪貼簿寫入、CGEvent 模擬、錯誤處理 |
+| `src-tauri/src/plugins/clipboard_paste.rs` | 剪貼簿貼上 | 🔴 高 | 剪貼簿寫入、AX API menu press（macOS）/ SendInput（Windows）、錯誤處理 |
 | `src-tauri/src/lib.rs` | App 初始化 & 視窗配置 | 🟡 中 | NSWindow 設定、視窗定位、DPI 計算 |
 | `src-tauri/src/main.rs` | 進入點 | 🟢 低 | 純委派 |
 | `src-tauri/src/plugins/mod.rs` | 模組彙總 | 🟢 低 | 純 re-export |
