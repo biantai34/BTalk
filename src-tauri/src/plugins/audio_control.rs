@@ -114,10 +114,7 @@ mod macos {
         };
 
         if status != 0 {
-            return Err(format!(
-                "Failed to get mute state: OSStatus {}",
-                status
-            ));
+            return Err(format!("Failed to get mute state: OSStatus {}", status));
         }
 
         Ok(mute_value != 0)
@@ -145,24 +142,19 @@ mod macos {
         };
 
         if status != 0 {
-            return Err(format!(
-                "Failed to set mute state: OSStatus {}",
-                status
-            ));
+            return Err(format!("Failed to set mute state: OSStatus {}", status));
         }
 
         Ok(())
     }
 
     pub fn get_system_mute() -> Result<bool, String> {
-        let device_id =
-            get_default_output_device().ok_or("No default output device found")?;
+        let device_id = get_default_output_device().ok_or("No default output device found")?;
         get_device_mute(device_id)
     }
 
     pub fn set_system_mute(muted: bool) -> Result<(), String> {
-        let device_id =
-            get_default_output_device().ok_or("No default output device found")?;
+        let device_id = get_default_output_device().ok_or("No default output device found")?;
         set_device_mute(device_id, muted)
     }
 }
@@ -171,14 +163,14 @@ mod macos {
 
 #[cfg(target_os = "windows")]
 mod windows_audio {
+    use windows::core::Interface;
+    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::Media::Audio::{
         eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator,
     };
-    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CoUninitialize, CLSCTX_ALL, COINIT_APARTMENTTHREADED,
     };
-    use windows::core::Interface;
 
     /// COM scope guard：離開 scope 時自動 CoUninitialize（若此次呼叫有成功 init）
     struct ComGuard {
@@ -201,12 +193,18 @@ mod windows_audio {
             // RPC_E_CHANGED_MODE (0x80010106) → 已在其他模式 init，不需 CoUninitialize
             let hr = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
             if hr.is_ok() {
-                Ok(ComGuard { should_uninit: true })
+                Ok(ComGuard {
+                    should_uninit: true,
+                })
             } else {
                 let code = hr.0 as u32;
                 if code == 0x80010106 {
-                    println!("[audio-control] COM already initialized in different mode, continuing");
-                    Ok(ComGuard { should_uninit: false })
+                    println!(
+                        "[audio-control] COM already initialized in different mode, continuing"
+                    );
+                    Ok(ComGuard {
+                        should_uninit: false,
+                    })
                 } else {
                     Err(format!("CoInitializeEx failed: HRESULT 0x{:08X}", code))
                 }
@@ -322,9 +320,7 @@ pub fn restore_system_audio(state: State<AudioControlState>) -> Result<(), Strin
     let was_muted = match *guard {
         Some(v) => v,
         None => {
-            println!(
-                "[audio-control] restore_system_audio: no pending restore, skipping"
-            );
+            println!("[audio-control] restore_system_audio: no pending restore, skipping");
             return Ok(());
         }
     };

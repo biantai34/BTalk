@@ -93,7 +93,10 @@ fn start_monitoring_platform<R: Runtime>(
                 if keycode == macos_keycodes::BACKSPACE || keycode == macos_keycodes::DELETE {
                     was_modified_for_tap.store(true, Ordering::SeqCst);
                     #[cfg(debug_assertions)]
-                    println!("[keyboard-monitor] Detected modify key: keycode={}", keycode);
+                    println!(
+                        "[keyboard-monitor] Detected modify key: keycode={}",
+                        keycode
+                    );
                 }
                 None
             },
@@ -136,7 +139,9 @@ fn start_monitoring_platform<R: Runtime>(
                 emit_result(&app_handle, result);
             }
             Err(()) => {
-                eprintln!("[keyboard-monitor] Failed to create CGEventTap (no Accessibility permission?)");
+                eprintln!(
+                    "[keyboard-monitor] Failed to create CGEventTap (no Accessibility permission?)"
+                );
                 is_monitoring.store(false, Ordering::SeqCst);
                 emit_result(&app_handle, false);
             }
@@ -203,7 +208,9 @@ fn start_monitoring_platform<R: Runtime>(
             match SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), None, 0) {
                 Ok(hook) => {
                     #[cfg(debug_assertions)]
-                    println!("[keyboard-monitor] Windows hook installed, monitoring for 5 seconds...");
+                    println!(
+                        "[keyboard-monitor] Windows hook installed, monitoring for 5 seconds..."
+                    );
 
                     // 取得當前執行緒 ID，用於計時器執行緒結束 message loop
                     let thread_id = windows::Win32::System::Threading::GetCurrentThreadId();

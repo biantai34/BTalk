@@ -13,10 +13,10 @@ use tauri::{
 #[serde(rename_all = "camelCase")]
 pub enum TriggerKey {
     // macOS keys (keycode)
-    Fn,           // 63
-    Option,       // 58 (left)
-    RightOption,  // 61
-    Command,      // 55
+    Fn,          // 63
+    Option,      // 58 (left)
+    RightOption, // 61
+    Command,     // 55
     // Windows keys (VK code)
     RightAlt, // VK_RMENU (0xA5)
     LeftAlt,  // VK_LMENU (0xA4)
@@ -189,9 +189,7 @@ pub fn open_accessibility_settings() -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .arg(
-                "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
-            )
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
             .spawn()
             .map_err(|err| err.to_string())?;
     }
@@ -305,97 +303,56 @@ fn start_event_tap<R: Runtime>(app_handle: AppHandle<R>, state: HotkeyListenerSt
                         if trigger == TriggerKey::Fn {
                             // Fn key: dual-detection strategy (keycode 63 + SecondaryFn flag)
                             let was_pressed = state.is_pressed.load(Ordering::SeqCst);
-                            let fn_flag =
-                                flags.contains(CGEventFlags::CGEventFlagSecondaryFn);
+                            let fn_flag = flags.contains(CGEventFlags::CGEventFlagSecondaryFn);
 
                             if keycode == macos_keycodes::FN {
                                 // Keycode 63: toggle-based detection
-                                handle_key_event(
-                                    &app_handle,
-                                    !was_pressed,
-                                    &state,
-                                );
+                                handle_key_event(&app_handle, !was_pressed, &state);
                             } else if fn_flag && !was_pressed {
                                 // Flag appeared without keycode 63
-                                handle_key_event(
-                                    &app_handle,
-                                    true,
-                                    &state,
-                                );
+                                handle_key_event(&app_handle, true, &state);
                             } else if !fn_flag && was_pressed {
                                 // Flag disappeared without keycode 63
-                                handle_key_event(
-                                    &app_handle,
-                                    false,
-                                    &state,
-                                );
+                                handle_key_event(&app_handle, false, &state);
                             }
                         } else if let TriggerKey::Custom { keycode: custom_kc } = &trigger {
                             // Custom key as modifier in FlagsChanged
                             if keycode == *custom_kc {
                                 // Prefer flag-based detection if this is a known modifier
                                 if let Some(pressed) = is_modifier_pressed(flags, &trigger) {
-                                    handle_key_event(
-                                        &app_handle,
-                                        pressed,
-                                        &state,
-                                    );
+                                    handle_key_event(&app_handle, pressed, &state);
                                 } else {
                                     // Unknown modifier: fallback to toggle-based
                                     let was_pressed = state.is_pressed.load(Ordering::SeqCst);
-                                    handle_key_event(
-                                        &app_handle,
-                                        !was_pressed,
-                                        &state,
-                                    );
+                                    handle_key_event(&app_handle, !was_pressed, &state);
                                 }
                             }
                         } else if matches_trigger_key_macos(keycode, &trigger) {
                             // Other modifier keys: flag-based press/release detection
                             if let Some(pressed) = is_modifier_pressed(flags, &trigger) {
-                                handle_key_event(
-                                    &app_handle,
-                                    pressed,
-                                    &state,
-                                );
+                                handle_key_event(&app_handle, pressed, &state);
                             }
                         }
                     }
                     CGEventType::KeyDown => {
                         if trigger == TriggerKey::Fn && keycode == macos_keycodes::FN {
                             // Fallback for Fn key
-                            handle_key_event(
-                                &app_handle,
-                                true,
-                                &state,
-                            );
+                            handle_key_event(&app_handle, true, &state);
                         } else if let TriggerKey::Custom { keycode: custom_kc } = &trigger {
                             // Custom non-modifier key: KeyDown fires pressed
                             if keycode == *custom_kc {
-                                handle_key_event(
-                                    &app_handle,
-                                    true,
-                                    &state,
-                                );
+                                handle_key_event(&app_handle, true, &state);
                             }
                         }
                     }
                     CGEventType::KeyUp => {
                         if trigger == TriggerKey::Fn && keycode == macos_keycodes::FN {
                             // Fallback for Fn key
-                            handle_key_event(
-                                &app_handle,
-                                false,
-                                &state,
-                            );
+                            handle_key_event(&app_handle, false, &state);
                         } else if let TriggerKey::Custom { keycode: custom_kc } = &trigger {
                             // Custom non-modifier key: KeyUp fires released
                             if keycode == *custom_kc {
-                                handle_key_event(
-                                    &app_handle,
-                                    false,
-                                    &state,
-                                );
+                                handle_key_event(&app_handle, false, &state);
                             }
                         }
                     }
@@ -418,9 +375,7 @@ fn start_event_tap<R: Runtime>(app_handle: AppHandle<R>, state: HotkeyListenerSt
                     current_run_loop.add_source(&loop_source, kCFRunLoopCommonModes);
                     tap.enable();
                     *run_loop_ref.lock().unwrap() = Some(current_run_loop);
-                    println!(
-                        "[hotkey-listener] RunLoop started, listening for hotkey events..."
-                    );
+                    println!("[hotkey-listener] RunLoop started, listening for hotkey events...");
                     CFRunLoop::run_current();
                     // RunLoop stopped (e.g. by reinitialize), clean up reference
                     *run_loop_ref.lock().unwrap() = None;
@@ -446,9 +401,7 @@ fn start_event_tap<R: Runtime>(app_handle: AppHandle<R>, state: HotkeyListenerSt
 }
 
 #[cfg(target_os = "macos")]
-fn stop_existing_event_tap(
-    run_loop_ref: &Arc<Mutex<Option<core_foundation::runloop::CFRunLoop>>>,
-) {
+fn stop_existing_event_tap(run_loop_ref: &Arc<Mutex<Option<core_foundation::runloop::CFRunLoop>>>) {
     if let Some(ref rl) = *run_loop_ref.lock().unwrap() {
         rl.stop();
         println!("[hotkey-listener] Stopped existing CFRunLoop");
@@ -636,9 +589,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
                     std::thread::sleep(std::time::Duration::from_secs(1));
                     let trusted_after = check_accessibility_permission();
                     if !trusted_after {
-                        println!(
-                            "[hotkey-listener] WARNING: Still no Accessibility permission."
-                        );
+                        println!("[hotkey-listener] WARNING: Still no Accessibility permission.");
                     }
                 }
                 start_event_tap(app.clone(), hook_state);

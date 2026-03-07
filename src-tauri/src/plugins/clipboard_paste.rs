@@ -27,6 +27,7 @@ impl serde::Serialize for ClipboardError {
 /// 目標 app 自己執行貼上，不涉及任何鍵盤事件模擬，不會有 CGEvent 殘留。
 /// 只需要 Accessibility 權限。
 #[cfg(target_os = "macos")]
+#[allow(unexpected_cfgs)]
 fn trigger_paste_via_menu() -> Result<(), String> {
     use core_foundation::base::{CFRelease, CFTypeRef, TCFType};
     use core_foundation::string::CFString;
@@ -119,11 +120,15 @@ unsafe fn find_and_press_paste_menu_item(
         &mut bar_children_ref,
     );
     if err != AX_ERROR_SUCCESS || bar_children_ref.is_null() {
-        return Err(format!("Failed to get menu bar children (AXError: {})", err));
+        return Err(format!(
+            "Failed to get menu bar children (AXError: {})",
+            err
+        ));
     }
 
-    let bar_items =
-        CFArray::<CFTypeRef>::wrap_under_create_rule(bar_children_ref as core_foundation::array::CFArrayRef);
+    let bar_items = CFArray::<CFTypeRef>::wrap_under_create_rule(
+        bar_children_ref as core_foundation::array::CFArrayRef,
+    );
 
     // 結構：Menu Bar → Menu Bar Items → AXMenu → Menu Items
     for i in 0..bar_items.len() {
@@ -139,8 +144,9 @@ unsafe fn find_and_press_paste_menu_item(
         if err != AX_ERROR_SUCCESS || menus_ref.is_null() {
             continue;
         }
-        let menus =
-            CFArray::<CFTypeRef>::wrap_under_create_rule(menus_ref as core_foundation::array::CFArrayRef);
+        let menus = CFArray::<CFTypeRef>::wrap_under_create_rule(
+            menus_ref as core_foundation::array::CFArrayRef,
+        );
 
         // 遍歷每個 AXMenu
         for j in 0..menus.len() {
@@ -156,8 +162,9 @@ unsafe fn find_and_press_paste_menu_item(
             if err != AX_ERROR_SUCCESS || items_ref.is_null() {
                 continue;
             }
-            let items =
-                CFArray::<CFTypeRef>::wrap_under_create_rule(items_ref as core_foundation::array::CFArrayRef);
+            let items = CFArray::<CFTypeRef>::wrap_under_create_rule(
+                items_ref as core_foundation::array::CFArrayRef,
+            );
 
             for k in 0..items.len() {
                 let menu_item = items.get(k).expect("menu_item index");
