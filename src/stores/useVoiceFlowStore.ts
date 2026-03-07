@@ -70,7 +70,30 @@ const WHISPER_HALLUCINATION_SUBSTRINGS = [
   "支持《明鏡》",
   "支持《點點》",
   "支持《点点》",
+  "MING PAO",
+  "Ming Pao",
 ];
+
+// CJK Unified Ideographs range
+const CJK_REGEX = /[\u4e00-\u9fff]/;
+
+/**
+ * Whisper 靜音幻覺常出現重複片段（如 "MING PAO Canada MING PAO Toronto"）。
+ * 將文字切成 token，偵測任何 token 是否重複出現。
+ */
+function hasRepeatedTokens(text: string): boolean {
+  const tokens = text
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length >= 3);
+  if (tokens.length < 3) return false;
+  const seen = new Set<string>();
+  for (const token of tokens) {
+    if (seen.has(token)) return true;
+    seen.add(token);
+  }
+  return false;
+}
 
 function isSilenceOrHallucination(
   rawText: string,
@@ -79,7 +102,11 @@ function isSilenceOrHallucination(
   if (!rawText) return true;
   if (noSpeechProbability >= NO_SPEECH_PROBABILITY_THRESHOLD) return true;
   if (WHISPER_HALLUCINATION_PHRASES.has(rawText)) return true;
-  return WHISPER_HALLUCINATION_SUBSTRINGS.some((sub) => rawText.includes(sub));
+  if (WHISPER_HALLUCINATION_SUBSTRINGS.some((sub) => rawText.includes(sub)))
+    return true;
+  // 語言設定為 zh 但輸出完全沒有中文字元 → 極可能幻覺
+  if (!CJK_REGEX.test(rawText) && hasRepeatedTokens(rawText)) return true;
+  return false;
 }
 const RECORDING_MESSAGE = "錄音中...";
 const TRANSCRIBING_MESSAGE = "轉錄中...";
