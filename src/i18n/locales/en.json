@@ -1,0 +1,259 @@
+{
+  "common": {
+    "save": "Save",
+    "delete": "Delete",
+    "cancel": "Cancel"
+  },
+  "settings": {
+    "about": {
+      "title": "About SayIt",
+      "description": "Hold to speak, release to paste. SayIt is an open-source desktop speech-to-text tool, licensed under MIT.",
+      "author": "Author:",
+      "website": "Website",
+      "sourceCode": "View Source Code",
+      "reportIssue": "Report an Issue"
+    },
+    "hotkey": {
+      "title": "Hotkey Settings",
+      "triggerKeyMode": "Trigger Key Mode",
+      "preset": "Preset",
+      "custom": "Custom",
+      "triggerKey": "Trigger Key",
+      "customTriggerKey": "Custom Trigger Key",
+      "notSet": "Not Set",
+      "pressKey": "Press a key...",
+      "record": "Record",
+      "systemKeyHint": "For Fn, media keys, etc., use Preset mode",
+      "triggerMode": "Trigger Mode",
+      "holdDescription": "Hold to record, release to stop",
+      "toggleDescription": "Press once to start, press again to stop",
+      "updated": "Trigger key updated",
+      "modeUpdated": "Trigger mode updated",
+      "keySet": "Trigger key set to {key}",
+      "customKeyDisplay": "Custom Key ({keycode})",
+      "keys": {
+        "fn": "Fn",
+        "leftOption": "Left Option",
+        "rightOption": "Right Option",
+        "leftControl": "Left Control",
+        "rightControl": "Right Control",
+        "command": "Command",
+        "shift": "Shift",
+        "rightAlt": "Right Alt",
+        "leftAlt": "Left Alt",
+        "control": "Control"
+      }
+    },
+    "apiKey": {
+      "title": "Groq API Key",
+      "set": "Set",
+      "notSet": "Not Set",
+      "goToConsole": "Go to Groq Console",
+      "instruction": "Generate an API Key in Groq Console and paste it here.",
+      "onboarding": "Welcome to SayIt! Please set up your Groq API Key to enable voice input.",
+      "show": "Show",
+      "hide": "Hide",
+      "saved": "API Key saved",
+      "deleted": "API Key deleted",
+      "confirmDelete": "Confirm deletion?",
+      "delete": "Delete API Key"
+    },
+    "model": {
+      "title": "Model Selection",
+      "description": "Choose the AI models for speech transcription and text enhancement. Faster models respond quicker, while larger models offer better quality.",
+      "whisperLabel": "Speech Transcription Model (Whisper)",
+      "llmLabel": "Text Enhancement Model (LLM)",
+      "whisperUpdated": "Speech transcription model updated",
+      "llmUpdated": "Text enhancement model updated",
+      "default": "Default",
+      "costPerHour": "${cost}/hour"
+    },
+    "prompt": {
+      "title": "AI Enhancement Prompt",
+      "description": "Customize the system prompt used by AI when enhancing text. Click Save after editing.",
+      "saved": "Prompt saved",
+      "confirmReset": "Confirm reset?",
+      "reset": "Reset to Default",
+      "resetDone": "Reset to default"
+    },
+    "threshold": {
+      "title": "Short Text Threshold",
+      "description": "When enabled, transcriptions below the specified character count will skip AI enhancement and paste the raw text directly. When disabled, AI enhancement is always applied.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "charCount": "Threshold Characters",
+      "enabledFeedback": "Short text threshold enabled",
+      "disabledFeedback": "Short text threshold disabled",
+      "charCountSaved": "Threshold character count saved"
+    },
+    "app": {
+      "title": "Application",
+      "language": "Interface Language",
+      "languageUpdated": "Interface language updated",
+      "muteOnRecording": "Mute on Recording",
+      "muteDescription": "Automatically mute system speakers when recording starts, and restore when finished",
+      "muteEnabled": "Mute on recording enabled",
+      "muteDisabled": "Mute on recording disabled",
+      "autoStart": "Launch at Login",
+      "autoStartDescription": "Automatically start SayIt when you log in",
+      "autoStartEnabled": "Launch at login enabled",
+      "autoStartDisabled": "Launch at login disabled"
+    }
+  },
+  "dashboard": {
+    "totalRecordingTime": "Total Recording Time",
+    "totalCharacters": "Total Characters",
+    "characterUnit": "chars",
+    "timeSaved": "Time Saved",
+    "totalTranscriptions": "Total Transcriptions",
+    "transcriptionUnit": "times",
+    "avgCharacters": "Avg. Characters per Use",
+    "dailyQuota": "Daily Free Quota Remaining",
+    "dailyQuotaDetail": "Daily Free Quota Details",
+    "usageTrend": "Daily Usage Trend",
+    "last30Days": "Last 30 Days",
+    "recentTranscriptions": "Recent Transcriptions",
+    "viewAll": "View All",
+    "emptyState": "Start using voice input and your stats will appear here",
+    "aiEnhanced": "AI Enhanced",
+    "usageCount": "Usage Count",
+    "noRecords": "No records yet",
+    "quotaWhisperRequests": "Whisper {used}/{limit} req",
+    "quotaAudio": "Audio {used}/{limit}",
+    "quotaLlmRequests": "LLM {used}/{limit} req",
+    "quotaLlmTokens": "LLM {used}/{limit} tokens"
+  },
+  "history": {
+    "searchPlaceholder": "Search transcriptions...",
+    "loading": "Loading...",
+    "noResults": "No results matching \"{query}\"",
+    "emptyState": "No transcriptions yet. Start using voice input!",
+    "enhancedText": "Enhanced Text",
+    "rawText": "Raw Text",
+    "recordingLabel": "Recording:",
+    "transcriptionLabel": "Transcription:",
+    "aiLabel": "AI:",
+    "charCountLabel": "Characters:",
+    "modeLabel": "Mode:",
+    "holdMode": "Hold",
+    "toggleMode": "Toggle",
+    "copied": "Copied",
+    "copy": "Copy",
+    "delete": "Delete",
+    "loadingMore": "Loading more..."
+  },
+  "dictionary": {
+    "termCount": "{count} terms",
+    "inputPlaceholder": "Enter a new term...",
+    "duplicateEntry": "This term already exists",
+    "add": "Add",
+    "added": "Added \"{term}\"",
+    "removed": "Removed \"{term}\"",
+    "loading": "Loading...",
+    "emptyState": "No custom terms yet. Add frequently used terms to improve recognition accuracy",
+    "termHeader": "Term",
+    "dateHeader": "Date Added",
+    "actionHeader": "Actions",
+    "loadFailed": "Failed to load term list"
+  },
+  "accessibility": {
+    "title": "Accessibility Permission Required",
+    "description": "SayIt needs Accessibility permission to listen for global hotkeys. Without it, the hotkey feature will not work.",
+    "step1": "Click the button below to open System Settings.",
+    "step2": "Find SayIt in the list and enable it.",
+    "step3": "Return to the app. It will automatically detect and activate.",
+    "reinitializing": "Permission detected. Activating hotkey...",
+    "reinitializeError": "Failed to reinitialize hotkey. Please restart the application.",
+    "openSettings": "Open System Settings",
+    "later": "Later"
+  },
+  "voiceFlow": {
+    "noSpeechDetected": "No speech detected",
+    "recording": "Recording...",
+    "transcribing": "Transcribing...",
+    "pasteSuccess": "Pasted",
+    "pasteSuccessUnenhanced": "Pasted (unenhanced)",
+    "enhancing": "Enhancing...",
+    "pasteFailed": "Paste failed",
+    "recordingTooShort": "Recording too short"
+  },
+  "errors": {
+    "apiKeyEmpty": "API Key cannot be empty",
+    "promptEmpty": "Prompt cannot be empty",
+    "apiKeyNotSet": "API Key not set",
+    "enhancementTimeout": "AI enhancement timed out",
+    "apiKeyMissing": "Please set your API Key",
+    "mic": {
+      "default": "Microphone initialization failed",
+      "permission": "Microphone permission is required to record",
+      "notFound": "No microphone detected",
+      "busy": "Microphone is in use by another application"
+    },
+    "network": "Network connection lost",
+    "transcription": {
+      "invalidAudio": "Invalid audio format or incomplete recording data",
+      "invalidApiKey": "API Key is invalid or expired",
+      "rateLimited": "Too many requests. Please try again later",
+      "serviceUnavailable": "Transcription service temporarily unavailable",
+      "failed": "Speech transcription failed",
+      "recorderError": "Recording device error",
+      "operationFailed": "Operation failed"
+    },
+    "enhancement": {
+      "timeout": "AI enhancement timed out. Raw text pasted instead",
+      "modelDecommissioned": "This model has been decommissioned. Please switch to another model in Settings",
+      "invalidApiKey": "API Key is invalid or expired",
+      "rateLimited": "Too many requests. Please try again later",
+      "badRequest": "Model request error. Please check your settings",
+      "serviceUnavailable": "AI enhancement service temporarily unavailable",
+      "failed": "AI enhancement failed"
+    },
+    "hotkey": {
+      "accessibilityPermission": "Accessibility permission required",
+      "hookInstallFailed": "Hotkey initialization failed",
+      "default": "Hotkey error occurred",
+      "conflictWarning": "This key ({displayName}) may conflict with system shortcuts. Consider choosing a different key",
+      "capslockWarning": "CapsLock may be unstable in Hold mode on macOS. Consider using Toggle mode or choosing a different key",
+      "presetHint": "This key is available in Preset mode. Consider switching to Preset mode",
+      "recordingTimeout": "No key detected. Some system keys (Fn, media keys) cannot be recorded. Please use Preset mode.",
+      "unsupportedKey": "This key is not supported",
+      "keycodeCollision": "This key shares the same keycode as {target} on macOS. Both will trigger simultaneously"
+    }
+  },
+  "format": {
+    "minutes": "{count} minutes",
+    "hours": "{count} hours",
+    "hoursMinutes": "{hours} hours {minutes} minutes",
+    "seconds": "{count} seconds",
+    "milliseconds": "{count} ms"
+  },
+  "mainApp": {
+    "nav": {
+      "dashboard": "Dashboard",
+      "history": "History",
+      "dictionary": "Dictionary",
+      "settings": "Settings"
+    },
+    "update": {
+      "installFailed": "Installation failed. Please download the update manually",
+      "checking": "Checking...",
+      "downloading": "Downloading...",
+      "installing": "Installing...",
+      "checkUpdate": "Check for Updates",
+      "ready": "Ready",
+      "installNow": "Install Now",
+      "upToDate": "You're up to date",
+      "checkFailed": "Check failed. Please verify your network connection",
+      "checkError": "Error checking for updates",
+      "updateFailed": "Update failed. Please download manually",
+      "autoInstallTitle": "Update Ready",
+      "autoInstallDescription": "SayIt v{version} has been downloaded. The application will restart after installation.",
+      "later": "Later",
+      "installRestart": "Install & Restart",
+      "newVersionTitle": "New Version Available",
+      "newVersionDescription": "SayIt v{version} is available. Click Start Update to download and restart the application automatically.",
+      "cancel": "Cancel",
+      "startUpdate": "Start Update"
+    }
+  }
+}

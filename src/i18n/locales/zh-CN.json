@@ -1,0 +1,259 @@
+{
+  "common": {
+    "save": "保存",
+    "delete": "删除",
+    "cancel": "取消"
+  },
+  "settings": {
+    "about": {
+      "title": "关于 SayIt",
+      "description": "按住说话，放开贴上。SayIt 是开源的桌面语音转文字工具，采用 MIT 授权。",
+      "author": "作者：",
+      "website": "个人网站",
+      "sourceCode": "查看源代码",
+      "reportIssue": "反馈问题"
+    },
+    "hotkey": {
+      "title": "快捷键设置",
+      "triggerKeyMode": "触发键模式",
+      "preset": "简易",
+      "custom": "自定义",
+      "triggerKey": "触发键",
+      "customTriggerKey": "自定义触发键",
+      "notSet": "未设置",
+      "pressKey": "请按下按键...",
+      "record": "录制",
+      "systemKeyHint": "Fn、媒体键等系统键请使用简易模式",
+      "triggerMode": "触发模式",
+      "holdDescription": "按住录音，放开停止",
+      "toggleDescription": "按一下开始，再按停止",
+      "updated": "触发键已更新",
+      "modeUpdated": "触发模式已更新",
+      "keySet": "触发键已设为 {key}",
+      "customKeyDisplay": "自定义键 ({keycode})",
+      "keys": {
+        "fn": "Fn",
+        "leftOption": "左 Option (⌥)",
+        "rightOption": "右 Option (⌥)",
+        "leftControl": "左 Control (⌃)",
+        "rightControl": "右 Control (⌃)",
+        "command": "Command (⌘)",
+        "shift": "Shift (⇧)",
+        "rightAlt": "右 Alt",
+        "leftAlt": "左 Alt",
+        "control": "Control"
+      }
+    },
+    "apiKey": {
+      "title": "Groq API Key",
+      "set": "已设置",
+      "notSet": "未设置",
+      "goToConsole": "前往 Groq Console",
+      "instruction": "请在 Groq Console 生成 API Key 后粘贴。",
+      "onboarding": "欢迎使用 SayIt！请先设置 Groq API Key 以启用语音输入功能。",
+      "show": "显示",
+      "hide": "隐藏",
+      "saved": "API Key 已保存",
+      "deleted": "API Key 已删除",
+      "confirmDelete": "确认删除？",
+      "delete": "删除 API Key"
+    },
+    "model": {
+      "title": "模型选择",
+      "description": "选择语音转录和文字整理使用的 AI 模型。速度较快的模型响应更即时，较大的模型品质更好。",
+      "whisperLabel": "语音转录模型（Whisper）",
+      "llmLabel": "文字整理模型（LLM）",
+      "whisperUpdated": "语音转录模型已更新",
+      "llmUpdated": "文字整理模型已更新",
+      "default": "默认",
+      "costPerHour": "每小时 ${cost}"
+    },
+    "prompt": {
+      "title": "AI 整理 Prompt",
+      "description": "自定义 AI 整理文字时使用的系统提示词。修改后点击保存。",
+      "saved": "Prompt 已保存",
+      "confirmReset": "确认重置？",
+      "reset": "重置为默认",
+      "resetDone": "已重置为默认"
+    },
+    "threshold": {
+      "title": "短文字门槛",
+      "description": "启用后，低于指定字数的转录文字将跳过 AI 整理，直接粘贴原文。停用则每次都做 AI 整理。",
+      "enabled": "已启用",
+      "disabled": "已停用",
+      "charCount": "门槛字数",
+      "enabledFeedback": "已启用短文字门槛",
+      "disabledFeedback": "已停用短文字门槛",
+      "charCountSaved": "门槛字数已保存"
+    },
+    "app": {
+      "title": "应用程序",
+      "language": "界面语言",
+      "languageUpdated": "界面语言已更新",
+      "muteOnRecording": "录音时自动静音",
+      "muteDescription": "开始录音时自动静音系统扬声器，结束后恢复",
+      "muteEnabled": "已启用录音自动静音",
+      "muteDisabled": "已停用录音自动静音",
+      "autoStart": "开机自动启动",
+      "autoStartDescription": "登录系统后自动启动 SayIt",
+      "autoStartEnabled": "已启用开机自启动",
+      "autoStartDisabled": "已关闭开机自启动"
+    }
+  },
+  "dashboard": {
+    "totalRecordingTime": "总口述时间",
+    "totalCharacters": "口述字数",
+    "characterUnit": "字",
+    "timeSaved": "节省时间",
+    "totalTranscriptions": "总使用次数",
+    "transcriptionUnit": "次",
+    "avgCharacters": "平均每次字数",
+    "dailyQuota": "今日剩余免费额度",
+    "dailyQuotaDetail": "今日剩余免费额度明细",
+    "usageTrend": "每日使用趋势",
+    "last30Days": "最近 30 天",
+    "recentTranscriptions": "最近转录",
+    "viewAll": "查看全部",
+    "emptyState": "开始使用语音输入，统计数据将在此显示",
+    "aiEnhanced": "AI 整理",
+    "usageCount": "使用次数",
+    "noRecords": "尚无使用记录",
+    "quotaWhisperRequests": "Whisper {used}/{limit} 次",
+    "quotaAudio": "音频 {used}/{limit}",
+    "quotaLlmRequests": "LLM {used}/{limit} 次",
+    "quotaLlmTokens": "LLM {used}/{limit} tokens"
+  },
+  "history": {
+    "searchPlaceholder": "搜索转录记录...",
+    "loading": "加载中...",
+    "noResults": "找不到符合「{query}」的记录",
+    "emptyState": "尚无转录记录，开始使用语音输入吧！",
+    "enhancedText": "整理后文字",
+    "rawText": "原始文字",
+    "recordingLabel": "录音：",
+    "transcriptionLabel": "转录：",
+    "aiLabel": "AI：",
+    "charCountLabel": "字数：",
+    "modeLabel": "模式：",
+    "holdMode": "长按",
+    "toggleMode": "切换",
+    "copied": "已复制",
+    "copy": "复制",
+    "delete": "删除",
+    "loadingMore": "加载更多..."
+  },
+  "dictionary": {
+    "termCount": "{count} 词汇",
+    "inputPlaceholder": "输入新词汇...",
+    "duplicateEntry": "此词汇已存在",
+    "add": "新增",
+    "added": "已新增「{term}」",
+    "removed": "已删除「{term}」",
+    "loading": "加载中...",
+    "emptyState": "尚无自定义词汇，新增常用术语以提升识别率",
+    "termHeader": "词汇",
+    "dateHeader": "新增时间",
+    "actionHeader": "操作",
+    "loadFailed": "加载词汇清单失败"
+  },
+  "accessibility": {
+    "title": "需要辅助使用权限",
+    "description": "SayIt 需要「辅助使用」权限来监听全局快捷键。若未授权，快捷键功能将无法使用。",
+    "step1": "点击下方按钮打开系统设置。",
+    "step2": "在列表中找到 SayIt 并勾选。",
+    "step3": "回到 App，系统将自动检测并启用。",
+    "reinitializing": "检测到权限已授予，正在启用快捷键...",
+    "reinitializeError": "快捷键重新初始化失败，请重新启动应用程序。",
+    "openSettings": "打开系统设置",
+    "later": "稍后设置"
+  },
+  "voiceFlow": {
+    "noSpeechDetected": "未检测到语音",
+    "recording": "录音中...",
+    "transcribing": "转录中...",
+    "pasteSuccess": "已粘贴 ✓",
+    "pasteSuccessUnenhanced": "已粘贴（未整理）",
+    "enhancing": "整理中...",
+    "pasteFailed": "粘贴失败",
+    "recordingTooShort": "录音时间太短"
+  },
+  "errors": {
+    "apiKeyEmpty": "API Key 不可为空",
+    "promptEmpty": "Prompt 不可为空",
+    "apiKeyNotSet": "API Key 未设置",
+    "enhancementTimeout": "AI 整理超时",
+    "apiKeyMissing": "请设置 API Key",
+    "mic": {
+      "default": "麦克风初始化失败",
+      "permission": "需要麦克风权限才能录音",
+      "notFound": "未检测到麦克风设备",
+      "busy": "麦克风被其他程序占用"
+    },
+    "network": "网络连接中断",
+    "transcription": {
+      "invalidAudio": "音频格式无效或录音数据不完整",
+      "invalidApiKey": "API Key 无效或已过期",
+      "rateLimited": "请求过于频繁，稍后再试",
+      "serviceUnavailable": "转录服务暂时无法使用",
+      "failed": "语音转录失败",
+      "recorderError": "录音设备发生错误",
+      "operationFailed": "操作失败"
+    },
+    "enhancement": {
+      "timeout": "AI 整理超时，已粘贴原始文字",
+      "modelDecommissioned": "此模型已下架，请至设置更换模型",
+      "invalidApiKey": "API Key 无效或已过期",
+      "rateLimited": "请求过于频繁，稍后再试",
+      "badRequest": "模型请求错误，请检查设置",
+      "serviceUnavailable": "AI 整理服务暂时无法使用",
+      "failed": "AI 整理失败"
+    },
+    "hotkey": {
+      "accessibilityPermission": "需要辅助使用权限",
+      "hookInstallFailed": "快捷键初始化失败",
+      "default": "快捷键发生错误",
+      "conflictWarning": "此按键（{displayName}）可能与系统快捷键冲突，建议选择其他按键",
+      "capslockWarning": "CapsLock 在 macOS 的 Hold 模式下可能不稳定，建议使用 Toggle 模式或选择其他按键",
+      "presetHint": "此按键已在简易模式中可用，建议切换至简易模式",
+      "recordingTimeout": "未检测到按键。部分系统键（Fn、媒体键）无法录制，请使用简易模式。",
+      "unsupportedKey": "不支持此按键",
+      "keycodeCollision": "此按键在 macOS 上与 {target} 共用相同代码，两者会同时触发"
+    }
+  },
+  "format": {
+    "minutes": "{count} 分钟",
+    "hours": "{count} 小时",
+    "hoursMinutes": "{hours} 小时 {minutes} 分钟",
+    "seconds": "{count} 秒",
+    "milliseconds": "{count} ms"
+  },
+  "mainApp": {
+    "nav": {
+      "dashboard": "仪表板",
+      "history": "历史记录",
+      "dictionary": "自定义字典",
+      "settings": "设置"
+    },
+    "update": {
+      "installFailed": "安装失败，请手动下载更新",
+      "checking": "检查中...",
+      "downloading": "下载中...",
+      "installing": "安装中...",
+      "checkUpdate": "检查更新",
+      "ready": "已就绪",
+      "installNow": "立即安装",
+      "upToDate": "已是最新版本",
+      "checkFailed": "检查失败，请确认网络连接",
+      "checkError": "检查更新时发生错误",
+      "updateFailed": "更新失败，请手动下载",
+      "autoInstallTitle": "更新已就绪",
+      "autoInstallDescription": "SayIt v{version} 已下载完成。安装后需要重新启动应用程序。",
+      "later": "稍后",
+      "installRestart": "安装并重启",
+      "newVersionTitle": "发现新版本",
+      "newVersionDescription": "SayIt v{version} 已可供更新。点击开始更新将自动下载并重新启动应用程序。",
+      "cancel": "取消",
+      "startUpdate": "开始更新"
+    }
+  }
+}

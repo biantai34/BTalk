@@ -25,7 +25,8 @@ export type SettingsKey =
   | "enhancementThreshold"
   | "llmModel"
   | "whisperModel"
-  | "muteOnRecording";
+  | "muteOnRecording"
+  | "locale";
 
 export interface SettingsUpdatedPayload {
   key: SettingsKey;

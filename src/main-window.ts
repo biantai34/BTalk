@@ -8,6 +8,7 @@ import { initializeDatabase } from "./lib/database";
 import { extractErrorMessage } from "./lib/errorUtils";
 import { initSentryForDashboard, captureError } from "./lib/sentry";
 import { useSettingsStore } from "./stores/useSettingsStore";
+import i18n from "./i18n";
 import "./style.css";
 
 // 停用 WebView 預設右鍵選單（Back / Reload），讓 app 行為更接近原生
@@ -19,7 +20,7 @@ async function bootstrap() {
 
   initSentryForDashboard(app, router);
 
-  app.use(pinia).use(router);
+  app.use(pinia).use(i18n).use(router);
 
   // DB 必須在 mount 之前初始化，否則 View 的 onMounted 會因 getDatabase() 拋錯而全部失敗
   try {
