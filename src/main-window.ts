@@ -20,6 +20,15 @@ async function bootstrap() {
 
   initSentryForDashboard(app, router);
 
+  window.addEventListener("unhandledrejection", (event) => {
+    captureError(event.reason, { source: "dashboard-unhandled-rejection" });
+  });
+
+  app.config.errorHandler = (err, _instance, info) => {
+    console.error("[Dashboard] Vue error:", err);
+    captureError(err, { source: "dashboard-vue-error", info });
+  };
+
   app.use(pinia).use(i18n).use(router);
 
   // DB 必須在 mount 之前初始化，否則 View 的 onMounted 會因 getDatabase() 拋錯而全部失敗

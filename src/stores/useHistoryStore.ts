@@ -10,6 +10,8 @@ import type {
 import type { TriggerMode } from "../types";
 import type { TranscriptionCompletedPayload } from "../types/events";
 import { getDatabase } from "../lib/database";
+import { extractErrorMessage } from "../lib/errorUtils";
+import { captureError } from "../lib/sentry";
 import {
   emitToWindow,
   TRANSCRIPTION_COMPLETED,
@@ -167,6 +169,12 @@ export const useHistoryStore = defineStore("history", () => {
       const db = getDatabase();
       const rows = await db.select<RawTranscriptionRow[]>(SELECT_ALL_SQL);
       transcriptionList.value = rows.map(mapRowToRecord);
+    } catch (err) {
+      console.error(
+        `[useHistoryStore] fetchTranscriptionList failed: ${extractErrorMessage(err)}`,
+      );
+      captureError(err, { source: "history", step: "fetch" });
+      throw err;
     } finally {
       isLoading.value = false;
     }
@@ -235,19 +243,27 @@ export const useHistoryStore = defineStore("history", () => {
 
   async function addTranscription(record: TranscriptionRecord) {
     const db = getDatabase();
-    await db.execute(INSERT_SQL, [
-      record.id,
-      record.timestamp,
-      record.rawText,
-      record.processedText,
-      record.recordingDurationMs,
-      record.transcriptionDurationMs,
-      record.enhancementDurationMs,
-      record.charCount,
-      record.triggerMode,
-      record.wasEnhanced ? 1 : 0,
-      record.wasModified === null ? null : record.wasModified ? 1 : 0,
-    ]);
+    try {
+      await db.execute(INSERT_SQL, [
+        record.id,
+        record.timestamp,
+        record.rawText,
+        record.processedText,
+        record.recordingDurationMs,
+        record.transcriptionDurationMs,
+        record.enhancementDurationMs,
+        record.charCount,
+        record.triggerMode,
+        record.wasEnhanced ? 1 : 0,
+        record.wasModified === null ? null : record.wasModified ? 1 : 0,
+      ]);
+    } catch (err) {
+      console.error(
+        `[useHistoryStore] addTranscription failed: ${extractErrorMessage(err)}`,
+      );
+      captureError(err, { source: "history", step: "add" });
+      throw err;
+    }
 
     try {
       const payload: TranscriptionCompletedPayload = {
@@ -266,6 +282,7 @@ export const useHistoryStore = defineStore("history", () => {
         "[useHistoryStore] emitToWindow failed (INSERT succeeded):",
         emitErr,
       );
+      captureError(emitErr, { source: "history", step: "add-emit" });
     }
   }
 
@@ -381,12 +398,27 @@ export const useHistoryStore = defineStore("history", () => {
     ]);
     if (results[0].status === "fulfilled") {
       dashboardStats.value = results[0].value;
+    } else {
+      captureError(results[0].reason, {
+        source: "history",
+        step: "fetch-stats",
+      });
     }
     if (results[1].status === "fulfilled") {
       recentTranscriptionList.value = results[1].value;
+    } else {
+      captureError(results[1].reason, {
+        source: "history",
+        step: "fetch-recent",
+      });
     }
     if (results[2].status === "fulfilled") {
       dailyUsageTrendList.value = results[2].value;
+    } else {
+      captureError(results[2].reason, {
+        source: "history",
+        step: "fetch-trend",
+      });
     }
   }
 

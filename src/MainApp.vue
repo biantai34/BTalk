@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useFeedbackMessage } from "./composables/useFeedbackMessage";
+import { captureError } from "./lib/sentry";
 import type { UpdateCheckResult } from "./lib/autoUpdater";
 import {
   Sidebar,
@@ -85,6 +86,7 @@ async function autoCheckAndDownload() {
     showAutoInstallDialog.value = true;
   } catch (err) {
     console.error("[main-window] Auto update check/download failed:", err);
+    captureError(err, { source: "updater", step: "auto-check" });
     updateState.value = "idle";
   }
 }
@@ -132,6 +134,7 @@ async function handleManualCheck() {
     handleManualCheckResult(result);
   } catch (err) {
     console.error("[main-window] Manual update check failed:", err);
+    captureError(err, { source: "updater", step: "manual-check" });
     updateFeedback.show("error", t("mainApp.update.checkError"));
     updateState.value = "idle";
   }

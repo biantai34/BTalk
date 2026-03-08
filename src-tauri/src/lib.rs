@@ -510,6 +510,11 @@ pub fn run() {
                     // 5. 等待背景 thread 完成清理
                     std::thread::sleep(std::time::Duration::from_millis(200));
 
+                    // 6. Flush Sentry 事件佇列（確保 shutdown 前的事件送出）
+                    if let Some(client) = sentry::Hub::current().client() {
+                        client.flush(Some(std::time::Duration::from_secs(2)));
+                    }
+
                     println!("[app] Graceful shutdown complete");
                     extern "C" {
                         fn _exit(status: i32) -> !;

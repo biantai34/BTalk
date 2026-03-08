@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { Button } from "@/components/ui/button";
+import { captureError } from "@/lib/sentry";
 
 const PERMISSION_CHECK_INTERVAL_MS = 2000;
 
@@ -36,6 +37,7 @@ function startPermissionPolling() {
       }
     } catch (error) {
       console.error("[accessibility-guide] Permission check failed:", error);
+      captureError(error, { source: "accessibility", step: "check-permission" });
     }
   }, PERMISSION_CHECK_INTERVAL_MS);
 }
@@ -55,6 +57,7 @@ async function handlePermissionGranted() {
     emit("close");
   } catch (error) {
     console.error("[accessibility-guide] Reinitialize failed:", error);
+    captureError(error, { source: "accessibility", step: "reinitialize" });
     reinitializeError.value = t("accessibility.reinitializeError");
   } finally {
     isReinitializing.value = false;
@@ -110,6 +113,7 @@ async function handleOpenAccessibilitySettings() {
     await invoke("open_accessibility_settings");
   } catch (error) {
     console.error("[accessibility-guide] Failed to open settings:", error);
+    captureError(error, { source: "accessibility", step: "open-settings" });
   }
 }
 </script>

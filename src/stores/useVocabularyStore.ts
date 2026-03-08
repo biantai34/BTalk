@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { getDatabase } from "../lib/database";
 import { extractErrorMessage } from "../lib/errorUtils";
+import { captureError } from "../lib/sentry";
 import { emitEvent, VOCABULARY_CHANGED } from "../composables/useTauriEvents";
 import type { VocabularyEntry } from "../types/vocabulary";
 import type { VocabularyChangedPayload } from "../types/events";
@@ -46,6 +47,7 @@ export const useVocabularyStore = defineStore("vocabulary", () => {
       console.error(
         `[vocabulary-store] fetchTermList failed: ${extractErrorMessage(error)}`,
       );
+      captureError(error, { source: "vocabulary", step: "fetch" });
       throw error;
     } finally {
       isLoading.value = false;
@@ -78,6 +80,7 @@ export const useVocabularyStore = defineStore("vocabulary", () => {
         throw new Error(i18n.global.t("dictionary.duplicateEntry"));
       }
       console.error(`[vocabulary-store] addTerm failed: ${message}`);
+      captureError(error, { source: "vocabulary", step: "add" });
       throw error;
     }
   }
@@ -98,6 +101,7 @@ export const useVocabularyStore = defineStore("vocabulary", () => {
       console.error(
         `[vocabulary-store] removeTerm failed: ${extractErrorMessage(error)}`,
       );
+      captureError(error, { source: "vocabulary", step: "remove" });
       throw error;
     }
   }

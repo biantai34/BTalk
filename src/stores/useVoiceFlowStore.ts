@@ -104,14 +104,17 @@ function isSilenceOrHallucination(
   if (WHISPER_HALLUCINATION_PHRASES.has(rawText)) return true;
   if (WHISPER_HALLUCINATION_SUBSTRINGS.some((sub) => rawText.includes(sub)))
     return true;
-  // CJK check only when Whisper language is "zh"
   const settingsStore = useSettingsStore();
+  const whisperLang = settingsStore.getWhisperLanguageCode();
+  // CJK-specific check: zh mode, no CJK chars, repeated tokens → hallucination
   if (
-    settingsStore.getWhisperLanguageCode() === "zh" &&
+    whisperLang === "zh" &&
     !CJK_REGEX.test(rawText) &&
     hasRepeatedTokens(rawText)
   )
     return true;
+  // Language-agnostic fallback: any mode (including auto), repeated tokens → likely hallucination
+  if (whisperLang === null && hasRepeatedTokens(rawText)) return true;
   return false;
 }
 function t(key: string, params?: Record<string, unknown>): string {
@@ -255,6 +258,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       writeErrorLog(
         `useVoiceFlowStore: mute_system_audio failed (non-blocking): ${extractErrorMessage(err)}`,
       );
+      captureError(err, { source: "voice-flow", step: "mute-audio" });
     }
   }
 
@@ -265,26 +269,27 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       writeErrorLog(
         `useVoiceFlowStore: restore_system_audio failed: ${extractErrorMessage(err)}`,
       );
+      captureError(err, { source: "voice-flow", step: "restore-audio" });
     }
   }
 
   function startQualityMonitorAfterPaste() {
-    void invoke("start_quality_monitor").catch((err) =>
+    void invoke("start_quality_monitor").catch((err) => {
       writeErrorLog(
         `useVoiceFlowStore: start_quality_monitor failed: ${extractErrorMessage(err)}`,
-      ),
-    );
+      );
+      captureError(err, { source: "voice-flow", step: "quality-monitor" });
+    });
   }
 
   function saveTranscriptionRecord(record: TranscriptionRecord) {
     const historyStore = useHistoryStore();
-    void historyStore
-      .addTranscription(record)
-      .catch((err) =>
-        writeErrorLog(
-          `useVoiceFlowStore: addTranscription failed: ${extractErrorMessage(err)}`,
-        ),
+    void historyStore.addTranscription(record).catch((err) => {
+      writeErrorLog(
+        `useVoiceFlowStore: addTranscription failed: ${extractErrorMessage(err)}`,
       );
+      captureError(err, { source: "voice-flow", step: "save-transcription" });
+    });
   }
 
   function buildTranscriptionRecord(params: {
@@ -325,11 +330,12 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     if (nextStatus === "idle") {
       stopMonitorPolling();
       collapseHideTimer = setTimeout(() => {
-        hideHud().catch((err) =>
+        hideHud().catch((err) => {
           writeErrorLog(
             `useVoiceFlowStore: hideHud failed: ${extractErrorMessage(err)}`,
-          ),
-        );
+          );
+          captureError(err, { source: "voice-flow", step: "hideHud" });
+        });
       }, COLLAPSE_HIDE_DELAY_MS);
       return;
     }
@@ -339,20 +345,22 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       nextStatus === "transcribing" ||
       nextStatus === "enhancing"
     ) {
-      showHud().catch((err) =>
+      showHud().catch((err) => {
         writeErrorLog(
           `useVoiceFlowStore: showHud failed: ${extractErrorMessage(err)}`,
-        ),
-      );
+        );
+        captureError(err, { source: "voice-flow", step: "showHud" });
+      });
       return;
     }
 
     if (nextStatus === "success") {
-      showHud().catch((err) =>
+      showHud().catch((err) => {
         writeErrorLog(
           `useVoiceFlowStore: showHud failed: ${extractErrorMessage(err)}`,
-        ),
-      );
+        );
+        captureError(err, { source: "voice-flow", step: "showHud" });
+      });
       autoHideTimer = setTimeout(() => {
         transitionTo("idle");
       }, SUCCESS_DISPLAY_DURATION_MS);
@@ -364,11 +372,15 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         .then(async () => {
           await getAppWindow().setIgnoreCursorEvents(false);
         })
-        .catch((err) =>
+        .catch((err) => {
           writeErrorLog(
             `useVoiceFlowStore: showHud/enableCursor failed: ${extractErrorMessage(err)}`,
-          ),
-        );
+          );
+          captureError(err, {
+            source: "voice-flow",
+            step: "showHud-enableCursor",
+          });
+        });
       autoHideTimer = setTimeout(() => {
         transitionTo("idle");
       }, ERROR_DISPLAY_DURATION_MS);
