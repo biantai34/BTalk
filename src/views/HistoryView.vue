@@ -27,12 +27,14 @@ const historyStore = useHistoryStore();
 const searchInput = ref("");
 const expandedRecordId = ref<string | null>(null);
 const copiedRecordId = ref<string | null>(null);
+const copiedRawRecordId = ref<string | null>(null);
 const sentinelRef = ref<HTMLElement | null>(null);
 const playingRecordId = ref<string | null>(null);
 let currentAudio: HTMLAudioElement | null = null;
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let copiedTimer: ReturnType<typeof setTimeout> | null = null;
+let copiedRawTimer: ReturnType<typeof setTimeout> | null = null;
 let observer: IntersectionObserver | null = null;
 let unlistenTranscriptionCompleted: UnlistenFn | null = null;
 
@@ -59,6 +61,19 @@ async function handleCopyText(record: TranscriptionRecord) {
     copiedRecordId.value = record.id;
     copiedTimer = setTimeout(() => {
       copiedRecordId.value = null;
+    }, 2500);
+  } catch {
+    // clipboard write may fail in some contexts, silently ignore
+  }
+}
+
+async function handleCopyRawText(record: TranscriptionRecord) {
+  try {
+    await invoke("copy_to_clipboard", { text: record.rawText });
+    if (copiedRawTimer) clearTimeout(copiedRawTimer);
+    copiedRawRecordId.value = record.id;
+    copiedRawTimer = setTimeout(() => {
+      copiedRawRecordId.value = null;
     }, 2500);
   } catch {
     // clipboard write may fail in some contexts, silently ignore
@@ -262,7 +277,17 @@ onBeforeUnmount(() => {
 
               <!-- 原始文字 -->
               <div>
-                <p class="text-xs font-medium text-muted-foreground mb-1">{{ $t("history.rawText") }}</p>
+                <div class="flex items-center justify-between mb-1">
+                  <p class="text-xs font-medium text-muted-foreground">{{ $t("history.rawText") }}</p>
+                  <button
+                    class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    @click.stop="handleCopyRawText(record)"
+                  >
+                    <Check v-if="copiedRawRecordId === record.id" class="h-3 w-3 text-green-400" />
+                    <Copy v-else class="h-3 w-3" />
+                    <span>{{ copiedRawRecordId === record.id ? $t("history.copied") : $t("history.copy") }}</span>
+                  </button>
+                </div>
                 <p class="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                   {{ record.rawText }}
                 </p>
