@@ -236,9 +236,6 @@
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 等 {count} 個",
     "retryFailed": "辨識失敗，請重新錄音",
-    "hallucinationLearnedLabel": "已學習幻覺詞",
-    "hallucinationLearned": "{terms}",
-    "hallucinationLearnedTruncated": "{terms} 等 {count} 個",
     "cancelled": "已取消"
   },
   "errors": {
@@ -298,7 +295,6 @@
       "dashboard": "儀表板",
       "history": "歷史記錄",
       "dictionary": "自訂字典",
-      "hallucinations": "幻覺詞庫",
       "settings": "設定"
     },
     "update": {
@@ -335,22 +331,5 @@
       "item9": "9. 修正版本升級後首次啟動「database is locked」或「no such table」錯誤",
       "dismiss": "了解"
     }
-  },
-  "hallucination": {
-    "title": "幻覺詞庫管理",
-    "totalCount": "共 {count} 個幻覺詞",
-    "addPlaceholder": "輸入新的幻覺詞...",
-    "addButton": "新增",
-    "emptyState": "尚無幻覺詞記錄，系統會自動學習 Whisper 常見幻覺文字",
-    "sourceAuto": "自動學習",
-    "sourceManual": "手動新增",
-    "deleteConfirm": "確認刪除此幻覺詞？",
-    "duplicateWarning": "此幻覺詞已存在",
-    "termHeader": "幻覺詞",
-    "sourceHeader": "來源",
-    "localeHeader": "語言",
-    "dateHeader": "新增時間",
-    "actionHeader": "操作",
-    "description": "幻覺詞庫用於過濾 Whisper 在無語音時產生的虛假文字。系統會自動學習攔截到的幻覺詞，下次完全相同的文字出現時直接過濾。你也可以手動新增已知的幻覺詞。"
   }
 }

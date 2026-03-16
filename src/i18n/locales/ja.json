@@ -236,9 +236,6 @@
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 他 {count} 語",
     "retryFailed": "認識失敗、もう一度録音してください",
-    "hallucinationLearnedLabel": "幻覚語を学習",
-    "hallucinationLearned": "{terms}",
-    "hallucinationLearnedTruncated": "{terms} 他 {count} 語",
     "cancelled": "キャンセル"
   },
   "errors": {
@@ -298,7 +295,6 @@
       "dashboard": "ダッシュボード",
       "history": "履歴",
       "dictionary": "カスタム辞書",
-      "hallucinations": "幻覚フィルター",
       "settings": "設定"
     },
     "update": {
@@ -335,22 +331,5 @@
       "item9": "9. アップデート後の初回起動時に「database is locked」または「no such table」エラーが発生する問題を修正",
       "dismiss": "了解"
     }
-  },
-  "hallucination": {
-    "title": "幻覚フィルター管理",
-    "totalCount": "全 {count} 件の幻覚語",
-    "addPlaceholder": "新しい幻覚語を入力...",
-    "addButton": "追加",
-    "emptyState": "幻覚語の記録はまだありません。システムが Whisper の一般的な幻覚テキストを自動学習します",
-    "sourceAuto": "自動学習",
-    "sourceManual": "手動追加",
-    "deleteConfirm": "この幻覚語を削除しますか？",
-    "duplicateWarning": "この幻覚語はすでに存在します",
-    "termHeader": "幻覚語",
-    "sourceHeader": "ソース",
-    "localeHeader": "言語",
-    "dateHeader": "追加日時",
-    "actionHeader": "操作",
-    "description": "幻覚フィルターは、Whisper が音声なしの際に生成する誤ったテキストを検出します。システムは検出した幻覚語を自動学習し、次回同じテキストが出現した場合に直接フィルタリングします。手動で既知の幻覚語を追加することもできます。"
   }
 }

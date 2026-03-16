@@ -236,9 +236,6 @@
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 외 {count}개",
     "retryFailed": "인식 실패, 다시 녹음해 주세요",
-    "hallucinationLearnedLabel": "환각어 학습됨",
-    "hallucinationLearned": "{terms}",
-    "hallucinationLearnedTruncated": "{terms} 외 {count}개",
     "cancelled": "취소됨"
   },
   "errors": {
@@ -298,7 +295,6 @@
       "dashboard": "대시보드",
       "history": "기록",
       "dictionary": "사용자 사전",
-      "hallucinations": "환각 필터",
       "settings": "설정"
     },
     "update": {
@@ -335,22 +331,5 @@
       "item9": "9. 업데이트 후 첫 실행 시 \"database is locked\" 또는 \"no such table\" 오류 수정",
       "dismiss": "확인"
     }
-  },
-  "hallucination": {
-    "title": "환각 필터 관리",
-    "totalCount": "총 {count}개 환각어",
-    "addPlaceholder": "새 환각어 입력...",
-    "addButton": "추가",
-    "emptyState": "아직 환각어 기록이 없습니다. 시스템이 Whisper의 일반적인 환각 텍스트를 자동 학습합니다",
-    "sourceAuto": "자동 학습",
-    "sourceManual": "수동 추가",
-    "deleteConfirm": "이 환각어를 삭제하시겠습니까?",
-    "duplicateWarning": "이 환각어는 이미 존재합니다",
-    "termHeader": "환각어",
-    "sourceHeader": "출처",
-    "localeHeader": "언어",
-    "dateHeader": "추가 일시",
-    "actionHeader": "작업",
-    "description": "환각 필터는 Whisper가 음성 없이 생성하는 허위 텍스트를 감지합니다. 시스템은 감지된 환각어를 자동 학습하여 다음에 동일한 텍스트가 나타나면 직접 필터링합니다. 알려진 환각어를 수동으로 추가할 수도 있습니다."
   }
 }

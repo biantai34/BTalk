@@ -36,7 +36,6 @@ import {
   VOICE_FLOW_STATE_CHANGED,
   CORRECTION_MONITOR_RESULT,
   VOCABULARY_LEARNED,
-  HALLUCINATION_LEARNED,
   ESCAPE_PRESSED,
   emitEvent,
   listenToEvent,
@@ -48,10 +47,8 @@ import {
   type QualityMonitorResultPayload,
   type CorrectionMonitorResultPayload,
   type VocabularyLearnedPayload,
-  type HallucinationLearnedPayload,
 } from "../types/events";
 import { detectHallucination } from "../lib/hallucinationDetector";
-import { useHallucinationStore } from "./useHallucinationStore";
 import type { HudStatus, HudTargetPosition } from "../types";
 import type { VoiceFlowStateChangedPayload } from "../types/events";
 import { useSettingsStore } from "./useSettingsStore";
@@ -1020,15 +1017,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         return;
       }
 
-      // ── 幻覺偵測（非空白但可疑的第二層過濾）──
-      const hallucinationStore = useHallucinationStore();
-      const hallucinationTermList =
-        await hallucinationStore.getTermListForDetection(
-          settingsStore.selectedTranscriptionLocale,
-        );
-
+      // ── 幻覺偵測（純物理信號：語速異常 + 無人聲）──
       writeInfoLog(
-        `useVoiceFlowStore: hallucination detection input: peakEnergy=${peakEnergyLevel.toFixed(4)}, rmsEnergy=${rmsEnergyLevel.toFixed(4)}, nsp=${result.noSpeechProbability.toFixed(3)}, rawText="${result.rawText}", durationMs=${Math.round(recordingDurationMs)}, termCount=${hallucinationTermList.length}`,
+        `useVoiceFlowStore: hallucination detection input: peakEnergy=${peakEnergyLevel.toFixed(4)}, rmsEnergy=${rmsEnergyLevel.toFixed(4)}, nsp=${result.noSpeechProbability.toFixed(3)}, rawText="${result.rawText}", durationMs=${Math.round(recordingDurationMs)}`,
       );
 
       const hallucinationDetectionResult = detectHallucination({
@@ -1037,31 +1028,13 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         peakEnergyLevel,
         rmsEnergyLevel,
         noSpeechProbability: result.noSpeechProbability,
-        hallucinationTermList,
       });
 
       writeInfoLog(
-        `useVoiceFlowStore: hallucination detection result: isHallucination=${hallucinationDetectionResult.isHallucination}, reason=${hallucinationDetectionResult.reason}, shouldAutoLearn=${hallucinationDetectionResult.shouldAutoLearn}`,
+        `useVoiceFlowStore: hallucination detection result: isHallucination=${hallucinationDetectionResult.isHallucination}, reason=${hallucinationDetectionResult.reason}`,
       );
 
       if (hallucinationDetectionResult.isHallucination) {
-        // 自動學習（在 failRecordingFlow 之前，立即寫入 DB）
-        if (hallucinationDetectionResult.shouldAutoLearn) {
-          const whisperCode = settingsStore.getWhisperLanguageCode() ?? "zh";
-          hallucinationStore
-            .addTerm(result.rawText.trim(), "auto", whisperCode)
-            .catch((err) =>
-              writeErrorLog(
-                `useVoiceFlowStore: hallucination addTerm failed: ${extractErrorMessage(err)}`,
-              ),
-            );
-        }
-
-        // 保存 shouldAutoLearn 狀態供 setTimeout 回調使用
-        const shouldNotifyLearned =
-          hallucinationDetectionResult.shouldAutoLearn;
-        const learnedText = result.rawText.trim();
-
         // 寫入 failed 記錄
         const failedRecord = buildTranscriptionRecord({
           id: transcriptionId,
@@ -1089,39 +1062,6 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
           t("voiceFlow.noSpeechDetected"),
           `useVoiceFlowStore: hallucination intercepted (reason=${hallucinationDetectionResult.reason})`,
         );
-
-        // error 結束後發送學習通知（延遲到 status=idle，避免 NotchHud 佇列死鎖）
-        if (shouldNotifyLearned) {
-          const hallucinationLearnedShowDelayMs =
-            ERROR_DISPLAY_DURATION_MS + COLLAPSE_HIDE_DELAY_MS + 100;
-          setTimeout(() => {
-            if (status.value !== "idle") return;
-
-            writeInfoLog(
-              "useVoiceFlowStore: emitting HALLUCINATION_LEARNED (delayed after error cycle)",
-            );
-            void emitEvent(HALLUCINATION_LEARNED, {
-              termList: [learnedText],
-            } satisfies HallucinationLearnedPayload);
-
-            clearLearnedHideTimer();
-            const appWindow = getAppWindow();
-            void appWindow.show().then(async () => {
-              await appWindow.setIgnoreCursorEvents(true);
-              learnedHideTimer = setTimeout(() => {
-                learnedHideTimer = null;
-                if (status.value === "idle") {
-                  hideHud().catch((err) =>
-                    writeErrorLog(
-                      `useVoiceFlowStore: hallucination learned hideHud failed: ${extractErrorMessage(err)}`,
-                    ),
-                  );
-                }
-              }, LEARNED_NOTIFICATION_TOTAL_DURATION_MS);
-            });
-          }, hallucinationLearnedShowDelayMs);
-        }
-
         return;
       }
 
@@ -1326,20 +1266,13 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         return;
       }
 
-      // ── 重送也需幻覺偵測（使用原始錄音的 peakEnergyLevel）──
-      const retryHallucinationStore = useHallucinationStore();
-      const retryHallucinationTermList =
-        await retryHallucinationStore.getTermListForDetection(
-          settingsStore.selectedTranscriptionLocale,
-        );
-
+      // ── 重送也需幻覺偵測（使用原始錄音的 energy levels）──
       const retryHallucinationResult = detectHallucination({
         rawText: result.rawText,
         recordingDurationMs,
         peakEnergyLevel: lastFailedPeakEnergyLevel.value,
         rmsEnergyLevel: lastFailedRmsEnergyLevel.value,
         noSpeechProbability: result.noSpeechProbability,
-        hallucinationTermList: retryHallucinationTermList,
       });
 
       if (retryHallucinationResult.isHallucination) {

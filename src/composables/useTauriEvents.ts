@@ -20,6 +20,4 @@ export const AUDIO_WAVEFORM = "audio:waveform" as const;
 
 export const CORRECTION_MONITOR_RESULT = "correction-monitor:result" as const;
 export const VOCABULARY_LEARNED = "vocabulary:learned" as const;
-export const HALLUCINATION_LEARNED = "hallucination:learned" as const;
-export const HALLUCINATION_CHANGED = "hallucination:changed" as const;
 export const ESCAPE_PRESSED = "escape:pressed" as const;

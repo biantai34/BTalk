@@ -370,6 +370,29 @@ async function doInitializeDatabase(): Promise<Database> {
     );
   }
 
+  // --- Migration v6 → v7: remove hallucination_terms table ---
+  const v7VersionRows = await connection.select<{ version: number }[]>(
+    "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1",
+  );
+  const v7CurrentVersion = v7VersionRows[0]?.version ?? 1;
+
+  if (v7CurrentVersion < 7) {
+    await connection.execute("BEGIN TRANSACTION;");
+    try {
+      await connection.execute("DROP TABLE IF EXISTS hallucination_terms;");
+      await connection.execute(
+        "INSERT OR REPLACE INTO schema_version (version) VALUES (7);",
+      );
+      await connection.execute("COMMIT;");
+    } catch (migrationError) {
+      await connection.execute("ROLLBACK;");
+      throw migrationError;
+    }
+    console.log(
+      "[database] Migration v6 → v7: removed hallucination_terms table",
+    );
+  }
+
   // --- 關鍵表驗證與恢復 ---
   // 先前版本的 migration 可能因連線池覆蓋導致 DROP TABLE 後未 RENAME，
   // 若 api_usage 不存在則以最新 schema 重建（資料已遺失，但 app 可正常運作）
@@ -379,9 +402,7 @@ async function doInitializeDatabase(): Promise<Database> {
       await connection.execute(
         "ALTER TABLE api_usage_new RENAME TO api_usage;",
       );
-      console.log(
-        "[database] Recovery: renamed api_usage_new → api_usage",
-      );
+      console.log("[database] Recovery: renamed api_usage_new → api_usage");
     } else {
       await connection.execute(`
         CREATE TABLE api_usage (
@@ -405,9 +426,7 @@ async function doInitializeDatabase(): Promise<Database> {
         CREATE INDEX IF NOT EXISTS idx_api_usage_transcription_id
         ON api_usage(transcription_id);
       `);
-      console.log(
-        "[database] Recovery: recreated missing api_usage table",
-      );
+      console.log("[database] Recovery: recreated missing api_usage table");
     }
   }
 

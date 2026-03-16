@@ -34,13 +34,6 @@ async function bootstrap() {
   // DB 必須在 mount 之前初始化，否則 View 的 onMounted 會因 getDatabase() 拋錯而全部失敗
   try {
     await initializeDatabase();
-
-    // 清除舊版內建幻覺詞（已改為純自動學習 + 手動新增機制）
-    const { useHallucinationStore } = await import(
-      "./stores/useHallucinationStore"
-    );
-    const hallucinationStore = useHallucinationStore();
-    await hallucinationStore.removeBuiltinTerms();
   } catch (err) {
     const message = extractErrorMessage(err);
     console.error("[main-window] Database init failed:", message);
