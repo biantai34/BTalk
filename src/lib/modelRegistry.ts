@@ -46,7 +46,7 @@ export interface WhisperModelConfig {
 
 // ── 預設值 ────────────────────────────────────────────────
 
-export const DEFAULT_LLM_MODEL_ID: LlmModelId = "qwen/qwen3-32b";
+export const DEFAULT_LLM_MODEL_ID: LlmModelId = "moonshotai/kimi-k2-instruct";
 export const DEFAULT_VOCABULARY_ANALYSIS_MODEL_ID: VocabularyAnalysisModelId =
   "llama-3.3-70b-versatile";
 export const DEFAULT_WHISPER_MODEL_ID: WhisperModelId = "whisper-large-v3";
@@ -54,10 +54,10 @@ export const DEFAULT_WHISPER_MODEL_ID: WhisperModelId = "whisper-large-v3";
 // ── 已下架模型 ID 映射（舊 → 新，用於自動遷移）──────────
 
 export const DECOMMISSIONED_MODEL_MAP: Record<string, LlmModelId> = {
-  "qwen-qwq-32b": "qwen/qwen3-32b",
-  "gpt-oss-120b": "qwen/qwen3-32b",
-  "openai/gpt-oss-120b": "qwen/qwen3-32b",
-  "openai/gpt-oss-20b": "qwen/qwen3-32b",
+  "qwen-qwq-32b": "moonshotai/kimi-k2-instruct",
+  "gpt-oss-120b": "moonshotai/kimi-k2-instruct",
+  "openai/gpt-oss-120b": "moonshotai/kimi-k2-instruct",
+  "openai/gpt-oss-20b": "moonshotai/kimi-k2-instruct",
   "llama-3.1-8b-instant": "qwen/qwen3-32b",
   "llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
   "llama-4-maverick-17b-128e-instruct": "qwen/qwen3-32b",

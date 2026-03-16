@@ -243,9 +243,21 @@ export const useSettingsStore = defineStore("settings", () => {
         savedThresholdCharCount ?? DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT;
 
       const savedLlmModelId = await store.get<string>("llmModelId");
-      selectedLlmModelId.value = getEffectiveLlmModelId(
+      const effectiveLlmModelId = getEffectiveLlmModelId(
         savedLlmModelId ?? null,
       );
+      // v0.8.7 一次性遷移：強制切換到 Kimi K2（使用者可在設定中改回）
+      const llmMigratedToKimiK2 = await store.get<boolean>(
+        "llmMigratedToKimiK2",
+      );
+      if (!llmMigratedToKimiK2) {
+        selectedLlmModelId.value = DEFAULT_LLM_MODEL_ID;
+        await store.set("llmModelId", DEFAULT_LLM_MODEL_ID);
+        await store.set("llmMigratedToKimiK2", true);
+        await store.save();
+      } else {
+        selectedLlmModelId.value = effectiveLlmModelId;
+      }
 
       const savedVocabularyAnalysisModelId = await store.get<string>(
         "vocabularyAnalysisModelId",
