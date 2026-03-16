@@ -332,6 +332,7 @@
       "item6": "6. Fixed database migration failure that could cause history to not display",
       "item7": "7. Fixed hallucination detection false positive: real speech incorrectly flagged as 'no speech detected'",
       "item8": "8. Fixed update notification not appearing after upgrade",
+      "item9": "9. Fixed \"database is locked\" or \"no such table\" error on first launch after update",
       "dismiss": "Got it"
     }
   },
