@@ -429,6 +429,7 @@ pub fn run() {
             plugins::audio_recorder::start_recording,
             plugins::audio_recorder::stop_recording,
             plugins::audio_recorder::save_recording_file,
+            plugins::audio_recorder::read_recording_file,
             plugins::audio_recorder::delete_all_recordings,
             plugins::audio_recorder::cleanup_old_recordings,
             plugins::transcription::transcribe_audio,

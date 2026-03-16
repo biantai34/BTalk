@@ -7,7 +7,7 @@ use std::time::Instant;
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use rustfft::{num_complex::Complex, FftPlanner};
-use tauri::{command, AppHandle, Emitter, Manager, State};
+use tauri::{command, ipc::Response, AppHandle, Emitter, Manager, State};
 
 // ========== Error Type ==========
 
@@ -539,6 +539,19 @@ pub fn save_recording_file(
     );
 
     Ok(file_path.to_string_lossy().to_string())
+}
+
+#[command]
+pub fn read_recording_file(id: String, app: AppHandle) -> Result<Response, String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let file_path = app_data_dir.join("recordings").join(format!("{}.wav", id));
+    let data = std::fs::read(&file_path)
+        .map_err(|e| format!("Failed to read recording file: {}", e))?;
+    Ok(Response::new(data))
 }
 
 #[command]

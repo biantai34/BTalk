@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { convertFileSrc } from "@tauri-apps/api/core";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { useHistoryStore } from "../stores/useHistoryStore";
 import {
@@ -32,6 +31,7 @@ const copiedRawRecordId = ref<string | null>(null);
 const sentinelRef = ref<HTMLElement | null>(null);
 const playingRecordId = ref<string | null>(null);
 let currentAudio: HTMLAudioElement | null = null;
+let currentBlobUrl: string | null = null;
 
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let copiedTimer: ReturnType<typeof setTimeout> | null = null;
@@ -81,12 +81,20 @@ async function handleCopyRawText(record: TranscriptionRecord) {
   }
 }
 
-function handlePlayRecording(record: TranscriptionRecord) {
-  // 停止正在播放的
+function cleanupAudio() {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
   }
+  if (currentBlobUrl) {
+    URL.revokeObjectURL(currentBlobUrl);
+    currentBlobUrl = null;
+  }
+}
+
+async function handlePlayRecording(record: TranscriptionRecord) {
+  // 停止正在播放的
+  cleanupAudio();
 
   // 如果點擊同一個（暫停）
   if (playingRecordId.value === record.id) {
@@ -96,24 +104,36 @@ function handlePlayRecording(record: TranscriptionRecord) {
 
   if (!record.audioFilePath) return;
 
-  const audioSrc = convertFileSrc(record.audioFilePath);
-  currentAudio = new Audio(audioSrc);
   playingRecordId.value = record.id;
 
-  currentAudio.addEventListener("ended", () => {
-    playingRecordId.value = null;
-    currentAudio = null;
-  });
+  try {
+    const audioData = await invoke<ArrayBuffer>("read_recording_file", {
+      id: record.id,
+    });
 
-  currentAudio.addEventListener("error", () => {
-    playingRecordId.value = null;
-    currentAudio = null;
-  });
+    // 防止 race condition：invoke 回來時已經切換到別的紀錄
+    if (playingRecordId.value !== record.id) return;
 
-  currentAudio.play().catch(() => {
+    const blob = new Blob([audioData], { type: "audio/wav" });
+    currentBlobUrl = URL.createObjectURL(blob);
+    currentAudio = new Audio(currentBlobUrl);
+
+    currentAudio.addEventListener("ended", () => {
+      cleanupAudio();
+      playingRecordId.value = null;
+    });
+
+    currentAudio.addEventListener("error", () => {
+      cleanupAudio();
+      playingRecordId.value = null;
+    });
+
+    await currentAudio.play();
+  } catch (err) {
+    cleanupAudio();
     playingRecordId.value = null;
-    currentAudio = null;
-  });
+    captureError(err, { source: "history-view", step: "play-recording" });
+  }
 }
 
 onMounted(async () => {
@@ -149,11 +169,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-  // 停止播放、釋放 Audio 資源
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
+  // 停止播放、釋放 Audio + Blob URL 資源
+  cleanupAudio();
   playingRecordId.value = null;
 
   unlistenTranscriptionCompleted?.();
