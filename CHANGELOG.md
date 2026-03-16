@@ -2,6 +2,16 @@
 
 SayIt 版本更新紀錄。
 
+## [0.8.1](https://github.com/chenjackle45/SayIt/releases/tag/v0.8.1) - 2026-03-16
+
+### Fixed
+
+- 修正資料庫升級（v2→v3、v3→v4）可能因重複欄位名而失敗，導致歷史記錄無法顯示的問題
+- 修正語音辨識幻覺偵測誤判：Whisper noSpeechProbability 聚合策略從 MAX 改為 MIN，避免有說話卻被判定為「未偵測到語音」
+- 修正升級後更新摘要未顯示：改為版本號比對機制，所有升級的使用者都能看到更新內容
+- 修正自動更新通知彈在隱藏視窗：下載完成後自動顯示 Dashboard 視窗
+- 修正自動更新只在啟動時檢查一次：恢復定時檢查機制（每 15 分鐘）
+
 ## [0.8.0](https://github.com/chenjackle45/SayIt/releases/tag/v0.8.0) - 2026-03-16
 
 ### AI 整理模式切換
