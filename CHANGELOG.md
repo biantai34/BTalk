@@ -2,6 +2,14 @@
 
 SayIt 版本更新紀錄。
 
+## [0.8.5](https://github.com/chenjackle45/SayIt/releases/tag/v0.8.5) - 2026-03-16
+
+### Fixed
+
+- 徹底修正版本升級後資料庫初始化失敗（database is locked / no such table）：HUD 視窗不再呼叫 Database.load()，改用 connectToDatabase() 等待 Dashboard 建好連線池後複用，從架構層面消除連線池覆蓋的競態條件
+- 自動恢復先前版本損壞導致遺失的 api_usage 表
+- 升級提示彈窗新增資料庫修復說明
+
 ## [0.8.4](https://github.com/chenjackle45/SayIt/releases/tag/v0.8.4) - 2026-03-16
 
 ### Fixed
