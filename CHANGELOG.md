@@ -2,6 +2,22 @@
 
 SayIt 版本更新紀錄。
 
+## [0.8.7](https://github.com/chenjackle45/SayIt/releases/tag/v0.8.7) - 2026-03-17
+
+### Changed
+
+- AI 整理預設模型切換為 Kimi K2（既有使用者首次更新自動遷移，可在設定中改回）
+- 重寫積極模式 prompt（五語言）：修正 AI 整理會回答逐字稿中的問題而非整理文字
+
+### Improved
+
+- 簡化幻覺偵測系統：移除幻覺字典和自動學習機制，改為純物理信號二層偵測（語速異常 + 無人聲），不再誤判正常語句
+- 移除 RMS 單獨判斷，所有 RMS 偵測需搭配 Whisper NSP 聯合確認，避免小聲說話被誤判
+
+### Removed
+
+- 移除幻覺字典功能（DB table、Store、管理頁面、Sidebar 導航、自動學習、HUD 通知）
+
 ## [0.8.6](https://github.com/chenjackle45/SayIt/releases/tag/v0.8.6) - 2026-03-16
 
 ### Fixed
