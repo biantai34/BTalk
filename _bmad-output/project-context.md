@@ -1,7 +1,7 @@
 ---
 project_name: 'sayit'
 user_name: 'Jackle'
-date: '2026-03-16'
+date: '2026-03-17'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n', 'smart_dictionary', 'model_registry_v2', 'esc_global_abort', 'hallucination_v3', 'sound_feedback']
 status: 'complete'
 rule_count: 261
@@ -83,7 +83,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - Groq Whisper API — `https://api.groq.com/openai/v1/audio/transcriptions`（預設模型：`whisper-large-v3`，語言：由 `getWhisperLanguageCode()` 回傳 `string | null`（auto 模式回傳 `null` 表示 Whisper 自動偵測），Rust fallback `"zh"`，可選 `whisper-large-v3-turbo`）
 - Groq LLM API — `https://api.groq.com/openai/v1/chat/completions`，兩個獨立模型設定：
-  - **文字整理**（enhancer）：預設 `qwen/qwen3-32b`，可選 Llama 3.3 70B / Llama 4 Scout 17B / Kimi K2 Instruct，temperature: 0.3，timeout: 5s
+  - **文字整理**（enhancer）：預設 `moonshotai/kimi-k2-instruct`，可選 Llama 3.3 70B / Llama 4 Scout 17B / Qwen3 32B，temperature: 0.3，timeout: 5s
   - **字典分析**（vocabularyAnalyzer）：預設 `llama-3.3-70b-versatile`，可選 Kimi K2 Instruct，temperature: 0，max_tokens: 256
 - **模型註冊** — `src/lib/modelRegistry.ts` 集中管理：
   - 三組獨立型別：`LlmModelId`、`VocabularyAnalysisModelId`、`WhisperModelId`
@@ -150,7 +150,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **unsafe 標記** — macOS `objc::msg_send!` 呼叫必須在 `unsafe {}` 區塊內
 - **原子操作** — 跨執行緒共享狀態使用 `AtomicBool` + `Ordering::SeqCst`
 - **Plugin 模式** — 每個功能模組是獨立的 `TauriPlugin<R>`，在 `plugins/mod.rs` 中 `pub mod` 匯出（目前：`clipboard_paste`, `hotkey_listener`, `keyboard_monitor`, `audio_control`, `audio_recorder`, `transcription`, `sound_feedback`, `text_field_reader`）。`hotkey_listener` 額外提供 `reset_hotkey_state` command（ESC 中斷後重置 toggle 狀態）。`sound_feedback` 提供 `play_start_sound`/`play_stop_sound`/`play_error_sound`/`play_learned_sound` commands，前端透過 `playSoundIfEnabled()` 依 `isSoundEffectsEnabled` 設定條件呼叫
-- **audio_recorder 錄音檔管理 Commands（Story 4.4）** — `save_recording_file`（寫入 WAV 至 `{APP_DATA}/recordings/`）、`delete_all_recordings`（清除所有錄音檔）、`cleanup_old_recordings`（按天數清理過期檔案，回傳被刪除的 transcription ID list）
+- **audio_recorder 錄音檔管理 Commands（Story 4.4）** — `save_recording_file`（寫入 WAV 至 `{APP_DATA}/recordings/`）、`read_recording_file`（接受 `id` 參數，Rust 端組合路徑讀取 WAV 位元組，回傳 `Response`）、`delete_all_recordings`（清除所有錄音檔）、`cleanup_old_recordings`（按天數清理過期檔案，回傳被刪除的 transcription ID list）
 - **transcription 重送 Command（Story 4.5）** — `retranscribe_from_file`（從磁碟讀取 WAV 重新轉錄），內部共用 `send_transcription_request()` 函式（與 `transcribe_audio` 共用 Groq API 邏輯，避免重複實作）
 - **Plugin State shutdown 慣例** — 每個 Plugin State struct 必須實作 `pub fn shutdown(&self)` 方法，用於 App 退出時清理資源（停止錄音、恢復音量、取消 CGEventTap 等）。`shutdown()` 內部必須處理 `Mutex` poisoned 的情況（`match lock() { Err(_) => return }`）
 - **Serde JSON 序列化** — Rust → 前端的 payload struct 使用 `#[serde(rename_all = "camelCase")]` 確保前端收到 camelCase JSON
@@ -296,6 +296,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **preset 模式（minimal/active）** — `getAiPrompt()` 即時計算，呼叫 `getPromptForModeAndLocale(mode, locale)` 自動跟隨 locale 切換，無需手動同步
 - **custom 模式** — 使用者自訂 prompt，切語言不影響 prompt 內容
 - **`refreshCrossWindowSettings()` 順序** — 必須先載入 `selectedLocale` + `selectedTranscriptionLocale`，再載入 `promptMode`，最後計算 `aiPrompt` fallback（因為 `getEffectivePromptLocale()` 依賴這些值）
+- **v0.8.7 一次性遷移** — `loadSettings()` 檢查 `llmMigratedToKimiK2` flag（`tauri-plugin-store`），首次為 false 時強制將 LLM 模型設為 `DEFAULT_LLM_MODEL_ID`（Kimi K2），寫入 flag 後不再觸發。使用者可在設定中手動切回其他模型
 
 #### Tailwind CSS v4
 
@@ -339,10 +340,10 @@ _This file contains critical rules and patterns that AI agents must follow when 
 #### 錄音檔案管理（Story 4.4）
 
 - **儲存位置** — `{APP_DATA}/recordings/{transcription_id}.wav`（Tauri `app_data_dir()`）
-- **Rust Commands** — `save_recording_file`（寫入 WAV）、`delete_all_recordings`（清除所有）、`cleanup_old_recordings`（按天數清理，回傳被刪 ID list）
+- **Rust Commands** — `save_recording_file`（寫入 WAV）、`read_recording_file`（讀取 WAV 位元組，接受 id 參數）、`delete_all_recordings`（清除所有）、`cleanup_old_recordings`（按天數清理，回傳被刪 ID list）
 - **DB 關聯** — `transcriptions.audio_file_path` 記錄完整路徑，`transcriptions.status` 記錄 `'success' | 'failed'`
 - **失敗記錄保存** — 空轉錄、錄音太短、API 錯誤、幻覺攔截均寫入 `status: 'failed'` 記錄，保留錄音檔供重送
-- **Asset Protocol 播放** — `convertFileSrc(filePath)` 轉換為 `http://asset.localhost/...` URL，配合 HTML5 `<audio>` 播放，需 CSP `media-src 'self' http://asset.localhost` + `assetProtocol` scope
+- **Blob URL 播放** — `invoke("read_recording_file", { id })` 透過 Rust IPC 讀取 WAV 位元組（macOS 上 asset protocol URL 被 CSP 阻擋），前端轉為 `new Uint8Array(raw)` → `Blob` → `URL.createObjectURL()` 播放，需 CSP `media-src 'self' blob:`
 - **自動清理** — `main-window.ts` 啟動時 `queueMicrotask` 非阻斷清理，呼叫 `cleanup_old_recordings` 後用回傳 ID list 批次 SQL UPDATE `audio_file_path = NULL`
 - **設定** — `useSettingsStore` 的 `isRecordingAutoCleanupEnabled`（boolean）和 `recordingAutoCleanupDays`（number, default 7）
 

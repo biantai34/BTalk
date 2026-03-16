@@ -1,3 +1,5 @@
+> **⚠️ 歷史檔案** — 此文件記錄 v0.8.0–v0.8.6 期間的四層幻覺偵測規範，已於 v0.8.7 簡化為二層純物理信號偵測。幻覺字典、自動學習、HallucinationView 等功能已全部移除。當前規範見 `_bmad-output/project-context.md`。
+
 # Story 2.4: Whisper 幻覺偵測與自動學習
 
 Status: done
