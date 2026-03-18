@@ -56,20 +56,22 @@ describe("apiPricing.ts", () => {
     });
 
     it("[P0] 1000 tokens 應按 output 價格上限計算", () => {
-      // 1000 * 0.00000059 = 0.00059
+      // 預設模型 Kimi K2: max(input=0.2, output=0.4) = 0.4/M
+      // 1000 * 0.0000004 = 0.0004
       const cost = calculateChatCostCeiling(1000);
-      expect(cost).toBeCloseTo(0.00059, 6);
+      expect(cost).toBeCloseTo(0.0004, 6);
     });
 
-    it("[P0] 1M tokens 應回傳 $0.59", () => {
+    it("[P0] 1M tokens 應回傳 $0.40", () => {
+      // 預設模型 Kimi K2: 1M * 0.4/M = 0.4
       const cost = calculateChatCostCeiling(1_000_000);
-      expect(cost).toBeCloseTo(0.59, 4);
+      expect(cost).toBeCloseTo(0.4, 4);
     });
 
     it("[P1] 150 tokens 應正確計算", () => {
-      // 150 * 0.00000059 = 0.0000885
+      // 預設模型 Kimi K2: 150 * 0.0000004 = 0.00006
       const cost = calculateChatCostCeiling(150);
-      expect(cost).toBeCloseTo(0.0000885, 6);
+      expect(cost).toBeCloseTo(0.00006, 6);
     });
   });
 });
