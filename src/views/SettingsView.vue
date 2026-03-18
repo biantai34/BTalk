@@ -72,8 +72,11 @@ import {
   Github,
   Globe,
   Instagram,
+  RefreshCw,
   Trash2,
 } from "lucide-vue-next";
+import { invoke } from "@tauri-apps/api/core";
+import type { AudioInputDeviceInfo } from "../types/audio";
 
 const settingsStore = useSettingsStore();
 const historyStore = useHistoryStore();
@@ -632,7 +635,51 @@ async function handleToggleAutoStart() {
   }
 }
 
+// ── 輸入裝置 ──────────────────────────────────────────────
+const audioInputDeviceList = ref<AudioInputDeviceInfo[]>([]);
+const isRefreshingDeviceList = ref(false);
+const audioInputFeedback = useFeedbackMessage();
+
+async function loadAudioInputDeviceList() {
+  try {
+    audioInputDeviceList.value =
+      await invoke<AudioInputDeviceInfo[]>("list_audio_input_devices");
+  } catch (err) {
+    console.error(
+      "[SettingsView] Failed to list audio input devices:",
+      extractErrorMessage(err),
+    );
+  }
+}
+
+async function handleRefreshAudioInputDeviceList() {
+  isRefreshingDeviceList.value = true;
+  try {
+    await loadAudioInputDeviceList();
+    audioInputFeedback.show(
+      "success",
+      t("settings.audioInput.refreshed", {
+        count: audioInputDeviceList.value.length,
+      }),
+    );
+  } catch (err) {
+    audioInputFeedback.show("error", extractErrorMessage(err));
+  } finally {
+    isRefreshingDeviceList.value = false;
+  }
+}
+
+async function handleAudioInputDeviceChange(deviceName: string) {
+  try {
+    await settingsStore.saveAudioInputDevice(deviceName);
+    audioInputFeedback.show("success", t("settings.audioInput.updated"));
+  } catch (err) {
+    audioInputFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
 onMounted(async () => {
+  void loadAudioInputDeviceList();
   selectedPromptMode.value = settingsStore.promptMode;
   promptInput.value = settingsStore.getAiPrompt();
   isPresetDirty.value = false;
@@ -1251,6 +1298,60 @@ onBeforeUnmount(() => {
             "
           >
             {{ smartDictionaryFeedback.message.value }}
+          </p>
+        </transition>
+      </CardContent>
+    </Card>
+
+    <!-- 輸入裝置 -->
+    <Card>
+      <CardHeader class="border-b border-border">
+        <CardTitle class="text-base">{{ $t("settings.audioInput.title") }}</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <p class="text-sm text-muted-foreground leading-relaxed">
+          {{ $t("settings.audioInput.description") }}
+        </p>
+        <div class="space-y-2">
+          <Label for="audio-input-device">{{ $t("settings.audioInput.deviceLabel") }}</Label>
+          <div class="flex items-center gap-2">
+            <Select
+              :model-value="settingsStore.selectedAudioInputDeviceName || '_default'"
+              @update:model-value="handleAudioInputDeviceChange($event === '_default' ? '' : ($event as string))"
+            >
+              <SelectTrigger id="audio-input-device" class="flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_default">
+                  {{ $t("settings.audioInput.systemDefault") }}
+                </SelectItem>
+                <SelectItem
+                  v-for="device in audioInputDeviceList"
+                  :key="device.name"
+                  :value="device.name"
+                >
+                  {{ device.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="icon"
+              :disabled="isRefreshingDeviceList"
+              @click="handleRefreshAudioInputDeviceList"
+            >
+              <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isRefreshingDeviceList }" />
+            </Button>
+          </div>
+        </div>
+        <transition name="feedback-fade">
+          <p
+            v-if="audioInputFeedback.message.value !== ''"
+            class="text-sm"
+            :class="audioInputFeedback.type.value === 'success' ? 'text-green-400' : 'text-destructive'"
+          >
+            {{ audioInputFeedback.message.value }}
           </p>
         </transition>
       </CardContent>

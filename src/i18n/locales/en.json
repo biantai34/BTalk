@@ -120,6 +120,15 @@
       "transcriptionLanguageUpdated": "Transcription language updated",
       "autoDetect": "Auto Detect"
     },
+    "audioInput": {
+      "title": "Input Device",
+      "description": "Select the microphone for recording",
+      "deviceLabel": "Microphone",
+      "systemDefault": "System Default",
+      "refresh": "Refresh",
+      "refreshed": "{count} device(s) detected",
+      "updated": "Input device updated"
+    },
     "recording": {
       "title": "Recording Storage",
       "description": "Recording files are saved to disk after transcription. You can play them back in history or use them for re-transcription.",
@@ -249,7 +258,8 @@
       "default": "Microphone initialization failed",
       "permission": "Microphone permission is required to record",
       "notFound": "No microphone detected",
-      "busy": "Microphone is in use by another application"
+      "busy": "Microphone is in use by another application",
+      "configFailed": "Failed to read microphone configuration"
     },
     "network": "Network connection lost",
     "transcription": {

@@ -31,7 +31,8 @@ export type SettingsKey =
   | "locale"
   | "transcriptionLocale"
   | "soundEffectsEnabled"
-  | "promptMode";
+  | "promptMode"
+  | "audioInputDevice";
 
 export interface SettingsUpdatedPayload {
   key: SettingsKey;

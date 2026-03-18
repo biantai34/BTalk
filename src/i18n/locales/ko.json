@@ -120,6 +120,15 @@
       "transcriptionLanguageUpdated": "전사 언어가 업데이트되었습니다",
       "autoDetect": "자동 감지"
     },
+    "audioInput": {
+      "title": "입력 장치",
+      "description": "녹음에 사용할 마이크를 선택하세요",
+      "deviceLabel": "마이크",
+      "systemDefault": "시스템 기본값",
+      "refresh": "새로고침",
+      "refreshed": "{count}개의 장치가 감지되었습니다",
+      "updated": "입력 장치가 업데이트되었습니다"
+    },
     "recording": {
       "title": "녹음 저장 관리",
       "description": "녹음 파일은 전사 후 디스크에 저장됩니다. 기록에서 재생하거나 재전사에 사용할 수 있습니다.",
@@ -249,7 +258,8 @@
       "default": "마이크 초기화 실패",
       "permission": "녹음하려면 마이크 권한이 필요합니다",
       "notFound": "마이크 장치를 찾을 수 없습니다",
-      "busy": "마이크가 다른 프로그램에 의해 사용 중입니다"
+      "busy": "마이크가 다른 프로그램에 의해 사용 중입니다",
+      "configFailed": "마이크 설정 읽기 실패"
     },
     "network": "네트워크 연결이 끊어졌습니다",
     "transcription": {

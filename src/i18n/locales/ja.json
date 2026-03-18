@@ -120,6 +120,15 @@
       "transcriptionLanguageUpdated": "文字起こし言語が更新されました",
       "autoDetect": "自動検出"
     },
+    "audioInput": {
+      "title": "入力デバイス",
+      "description": "録音に使用するマイクを選択",
+      "deviceLabel": "マイク",
+      "systemDefault": "システムデフォルト",
+      "refresh": "更新",
+      "refreshed": "{count} 個のデバイスを検出しました",
+      "updated": "入力デバイスを更新しました"
+    },
     "recording": {
       "title": "録音ストレージ管理",
       "description": "録音ファイルは文字起こし後にディスクに保存されます。履歴での再生や再文字起こしに使用できます。",
@@ -249,7 +258,8 @@
       "default": "マイクの初期化に失敗しました",
       "permission": "録音にはマイクの権限が必要です",
       "notFound": "マイクデバイスが検出されませんでした",
-      "busy": "マイクが他のアプリに使用されています"
+      "busy": "マイクが他のアプリに使用されています",
+      "configFailed": "マイク設定の読み取りに失敗しました"
     },
     "network": "ネットワーク接続が切断されました",
     "transcription": {

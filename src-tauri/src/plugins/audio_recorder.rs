@@ -113,12 +113,40 @@ struct InputConfigSelection {
     channels: u16,
 }
 
+// ========== Device Enumeration ==========
+
+#[derive(Clone, serde::Serialize)]
+pub struct AudioInputDeviceInfo {
+    name: String,
+}
+
+#[command]
+pub fn list_audio_input_devices() -> Vec<AudioInputDeviceInfo> {
+    let host = cpal::default_host();
+    let mut device_list = Vec::new();
+
+    if let Ok(devices) = host.input_devices() {
+        for device in devices {
+            if let Ok(name) = device.name() {
+                device_list.push(AudioInputDeviceInfo { name });
+            }
+        }
+    }
+
+    println!(
+        "[audio-recorder] Listed {} input device(s)",
+        device_list.len()
+    );
+    device_list
+}
+
 // ========== Commands ==========
 
 #[command]
 pub fn start_recording(
     app: AppHandle,
     state: State<'_, AudioRecorderState>,
+    device_name: String,
 ) -> Result<(), AudioRecorderError> {
     let mut guard = state
         .recording
@@ -140,10 +168,11 @@ pub fn start_recording(
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<u32, AudioRecorderError>>();
     let start_time = Instant::now();
 
+    let device_name_for_thread = device_name;
     let thread = std::thread::Builder::new()
         .name("audio-recorder".to_string())
         .spawn(move || {
-            run_recording_thread(app, inner_for_thread, ready_tx);
+            run_recording_thread(app, inner_for_thread, ready_tx, device_name_for_thread);
         })
         .map_err(|e| AudioRecorderError::BuildStream(format!("Thread spawn failed: {}", e)))?;
 
@@ -246,16 +275,38 @@ fn run_recording_thread(
     app: AppHandle,
     inner: Arc<RecordingInner>,
     ready_tx: std::sync::mpsc::Sender<Result<u32, AudioRecorderError>>,
+    device_name: String,
 ) {
     // ── Get input device ──
     let host = cpal::default_host();
-    let device = match host.default_input_device() {
+    let device = if device_name.is_empty() {
+        // 空字串 = 使用系統預設
+        host.default_input_device()
+    } else {
+        // 依名稱查找，找不到時 fallback 到系統預設
+        let found = host
+            .input_devices()
+            .ok()
+            .and_then(|mut devices| devices.find(|d| d.name().map_or(false, |n| n == device_name)));
+        if found.is_none() {
+            println!(
+                "[audio-recorder] Device '{}' not found, falling back to default",
+                device_name
+            );
+        }
+        found.or_else(|| host.default_input_device())
+    };
+    let device = match device {
         Some(d) => d,
         None => {
             let _ = ready_tx.send(Err(AudioRecorderError::NoInputDevice));
             return;
         }
     };
+    println!(
+        "[audio-recorder] Using device: {}",
+        device.name().unwrap_or_else(|_| "<unknown>".to_string())
+    );
 
     // ── Determine config (prefer 16 kHz mono, fallback to device default) ──
     let selection = match determine_input_config(&device) {

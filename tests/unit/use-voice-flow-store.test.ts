@@ -200,6 +200,7 @@ vi.mock("../../src/stores/useSettingsStore", () => ({
       return mockSettingsState.isSmartDictionaryEnabled;
     },
     getWhisperLanguageCode: () => mockSettingsState.whisperLanguageCode,
+    selectedAudioInputDeviceName: "",
   }),
 }));
 
@@ -397,7 +398,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:pressed");
@@ -420,7 +423,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -457,7 +462,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -478,7 +485,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     mockSettingsState.apiKey = "";
@@ -515,7 +524,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -546,7 +557,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -573,7 +586,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -600,7 +615,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -629,7 +646,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -656,7 +675,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -688,7 +709,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:pressed");
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:released");
@@ -717,7 +740,9 @@ describe("useVoiceFlowStore", () => {
 
     triggerHotkeyEvent("hotkey:toggled", { mode: "toggle", action: "start" });
     await vi.waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     triggerHotkeyEvent("hotkey:toggled", { mode: "toggle", action: "stop" });
@@ -822,7 +847,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -868,7 +895,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -908,7 +937,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -940,7 +971,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -979,7 +1012,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1009,7 +1044,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1024,7 +1061,7 @@ describe("useVoiceFlowStore", () => {
 
     it("[P0] 門檻停用時，短文字仍走 AI 整理", async () => {
       mockSettingsState.isEnhancementThresholdEnabled = false;
-      const shortText = "短文字";
+      const shortText = "這是短文字測試";
       mockInvoke.mockImplementation(
         createMockInvokeHandler({
           transcribeResult: {
@@ -1035,7 +1072,7 @@ describe("useVoiceFlowStore", () => {
         }),
       );
       mockEnhanceText.mockResolvedValueOnce({
-        text: "AI 整理過的短文字",
+        text: "這是 AI 整理過的短文字",
         usage: null,
       });
 
@@ -1044,13 +1081,15 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
       await vi.waitFor(() => {
         expect(mockInvoke).toHaveBeenCalledWith("paste_text", {
-          text: "AI 整理過的短文字",
+          text: "這是 AI 整理過的短文字",
         });
       });
 
@@ -1082,7 +1121,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1141,7 +1182,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1181,7 +1224,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1231,7 +1276,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1258,7 +1305,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1319,7 +1368,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1373,7 +1424,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1406,7 +1459,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1437,7 +1492,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1476,7 +1533,9 @@ describe("useVoiceFlowStore", () => {
       // 開始新一輪錄音
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       expect(store.lastWasModified).toBeNull();
@@ -1504,7 +1563,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1542,7 +1603,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1586,7 +1649,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1625,7 +1690,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1660,7 +1727,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1692,7 +1761,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1726,7 +1797,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1763,7 +1836,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1812,7 +1887,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1856,7 +1933,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1896,7 +1975,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -1998,7 +2079,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -2053,7 +2136,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -2093,7 +2178,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
       expect(mockInvoke).toHaveBeenCalledWith("play_start_sound");
     });
@@ -2104,7 +2191,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -2128,7 +2217,9 @@ describe("useVoiceFlowStore", () => {
         expect(store.status).toBe("recording");
       });
 
-      expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+      expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+        deviceName: "",
+      });
     });
 
     it("play_stop_sound 失敗不應影響轉錄流程", async () => {
@@ -2142,7 +2233,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");
@@ -2162,7 +2255,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
       expect(mockInvoke).not.toHaveBeenCalledWith("play_start_sound");
     });
@@ -2174,7 +2269,9 @@ describe("useVoiceFlowStore", () => {
 
       triggerHotkeyEvent("hotkey:pressed");
       await vi.waitFor(() => {
-        expect(mockInvoke).toHaveBeenCalledWith("start_recording");
+        expect(mockInvoke).toHaveBeenCalledWith("start_recording", {
+          deviceName: "",
+        });
       });
 
       triggerHotkeyEvent("hotkey:released");

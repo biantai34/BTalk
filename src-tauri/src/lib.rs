@@ -426,6 +426,7 @@ pub fn run() {
             plugins::keyboard_monitor::start_quality_monitor,
             plugins::keyboard_monitor::start_correction_monitor,
             plugins::text_field_reader::read_focused_text_field,
+            plugins::audio_recorder::list_audio_input_devices,
             plugins::audio_recorder::start_recording,
             plugins::audio_recorder::stop_recording,
             plugins::audio_recorder::save_recording_file,

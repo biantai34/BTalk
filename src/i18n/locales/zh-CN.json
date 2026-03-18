@@ -120,6 +120,15 @@
       "transcriptionLanguageUpdated": "转录语言已更新",
       "autoDetect": "自动检测"
     },
+    "audioInput": {
+      "title": "输入设备",
+      "description": "选择录音使用的麦克风",
+      "deviceLabel": "麦克风",
+      "systemDefault": "系统默认",
+      "refresh": "刷新",
+      "refreshed": "已检测到 {count} 个设备",
+      "updated": "输入设备已更新"
+    },
     "recording": {
       "title": "录音存储管理",
       "description": "录音文件会在转录后保存至磁盘，您可以在历史记录中播放或用于重新转录。",
@@ -249,7 +258,8 @@
       "default": "麦克风初始化失败",
       "permission": "需要麦克风权限才能录音",
       "notFound": "未检测到麦克风设备",
-      "busy": "麦克风被其他程序占用"
+      "busy": "麦克风被其他程序占用",
+      "configFailed": "麦克风设置读取失败"
     },
     "network": "网络连接中断",
     "transcription": {

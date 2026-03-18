@@ -122,6 +122,7 @@ export const useSettingsStore = defineStore("settings", () => {
   const recordingAutoCleanupDays = ref<number>(
     DEFAULT_RECORDING_AUTO_CLEANUP_DAYS,
   );
+  const selectedAudioInputDeviceName = ref<string>("");
   let isLoaded = false;
 
   /** Resolve which SupportedLocale to use for prompt default (shared logic). */
@@ -297,6 +298,11 @@ export const useSettingsStore = defineStore("settings", () => {
       );
       recordingAutoCleanupDays.value =
         savedRecordingAutoCleanupDays ?? DEFAULT_RECORDING_AUTO_CLEANUP_DAYS;
+
+      const savedAudioInputDeviceName = await store.get<string>(
+        "audioInputDeviceName",
+      );
+      selectedAudioInputDeviceName.value = savedAudioInputDeviceName ?? "";
 
       // Sync saved (or default) config to Rust on startup
       await syncHotkeyConfigToRust(key, mode);
@@ -889,6 +895,36 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   }
 
+  async function saveAudioInputDevice(deviceName: string) {
+    try {
+      const store = await load(STORE_NAME);
+      await store.set("audioInputDeviceName", deviceName);
+      await store.save();
+
+      selectedAudioInputDeviceName.value = deviceName;
+
+      const payload: SettingsUpdatedPayload = {
+        key: "audioInputDevice",
+        value: deviceName,
+      };
+      await emitEvent(SETTINGS_UPDATED, payload);
+
+      console.log(
+        `[useSettingsStore] Audio input device saved: "${deviceName || "(system default)"}"`,
+      );
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] saveAudioInputDevice failed:",
+        extractErrorMessage(err),
+      );
+      captureError(err, {
+        source: "settings",
+        step: "save-audio-input-device",
+      });
+      throw err;
+    }
+  }
+
   async function refreshCrossWindowSettings() {
     try {
       const store = await load(STORE_NAME);
@@ -985,6 +1021,9 @@ export const useSettingsStore = defineStore("settings", () => {
       );
       recordingAutoCleanupDays.value =
         savedRecCleanupDays ?? DEFAULT_RECORDING_AUTO_CLEANUP_DAYS;
+
+      const savedAudioDevice = await store.get<string>("audioInputDeviceName");
+      selectedAudioInputDeviceName.value = savedAudioDevice ?? "";
     } catch (err) {
       console.error(
         "[useSettingsStore] refreshCrossWindowSettings failed:",
@@ -1069,6 +1108,8 @@ export const useSettingsStore = defineStore("settings", () => {
     isRecordingAutoCleanupEnabled,
     recordingAutoCleanupDays,
     saveRecordingAutoCleanup,
+    selectedAudioInputDeviceName,
+    saveAudioInputDevice,
     selectedLocale,
     saveLocale,
     selectedTranscriptionLocale,

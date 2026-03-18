@@ -48,13 +48,17 @@ import {
   type CorrectionMonitorResultPayload,
   type VocabularyLearnedPayload,
 } from "../types/events";
-import { detectHallucination } from "../lib/hallucinationDetector";
+import {
+  detectHallucination,
+  detectEnhancementAnomaly,
+} from "../lib/hallucinationDetector";
 import type { HudStatus, HudTargetPosition } from "../types";
 import type { VoiceFlowStateChangedPayload } from "../types/events";
 import { useSettingsStore } from "./useSettingsStore";
 
 const SUCCESS_DISPLAY_DURATION_MS = 1000;
 const ERROR_DISPLAY_DURATION_MS = 3000;
+const MAX_ENHANCEMENT_RETRY_COUNT = 3;
 const ERROR_WITH_RETRY_DISPLAY_DURATION_MS = 6000;
 const START_SOUND_DURATION_MS = 400;
 const CANCELLED_DISPLAY_DURATION_MS = 1000;
@@ -876,7 +880,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         delayedMuteTimer = null;
         void muteSystemAudioIfEnabled();
       }, START_SOUND_DURATION_MS);
-      await invoke("start_recording");
+      await invoke("start_recording", {
+        deviceName: useSettingsStore().selectedAudioInputDeviceName,
+      });
       if (isAborted.value) return;
       startElapsedTimer();
       transitionTo("recording", t("voiceFlow.recording"));
@@ -1075,14 +1081,53 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         try {
           const enhancementTermList =
             await vocabularyStore.getTopTermListByWeight(50);
-          const enhanceResult = await enhanceText(result.rawText, apiKey, {
+          const enhanceOptions = {
             systemPrompt: settingsStore.getAiPrompt(),
             vocabularyTermList:
               enhancementTermList.length > 0 ? enhancementTermList : undefined,
             modelId: settingsStore.selectedLlmModelId,
             signal: abortController?.signal,
-          });
+          };
+
+          let enhanceResult = await enhanceText(
+            result.rawText,
+            apiKey,
+            enhanceOptions,
+          );
           if (isAborted.value) return;
+
+          // 增強後長度爆炸偵測（含重試機制）
+          let retryCount = 0;
+          while (
+            retryCount < MAX_ENHANCEMENT_RETRY_COUNT &&
+            detectEnhancementAnomaly({
+              rawText: result.rawText,
+              enhancedText: enhanceResult.text,
+            }).isAnomaly
+          ) {
+            retryCount++;
+            writeInfoLog(
+              `useVoiceFlowStore: enhancement anomaly detected (attempt ${retryCount}/${MAX_ENHANCEMENT_RETRY_COUNT}), retrying`,
+            );
+            enhanceResult = await enhanceText(
+              result.rawText,
+              apiKey,
+              enhanceOptions,
+            );
+            if (isAborted.value) return;
+          }
+
+          // 重試後仍異常 → fallback 到 rawText
+          const finalAnomaly = detectEnhancementAnomaly({
+            rawText: result.rawText,
+            enhancedText: enhanceResult.text,
+          });
+          if (finalAnomaly.isAnomaly) {
+            writeErrorLog(
+              `useVoiceFlowStore: enhancement failed after ${MAX_ENHANCEMENT_RETRY_COUNT} retries (reason=${finalAnomaly.reason}), falling back to raw text`,
+            );
+            enhanceResult = { ...enhanceResult, text: result.rawText };
+          }
 
           const enhancementDurationMs =
             performance.now() - enhancementStartTime;
@@ -1094,7 +1139,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
             recordingDurationMs,
             transcriptionDurationMs: result.transcriptionDurationMs,
             enhancementDurationMs,
-            wasEnhanced: true,
+            wasEnhanced: !finalAnomaly.isAnomaly,
             audioFilePath,
             status: "success",
           });
@@ -1113,7 +1158,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
               recordingDurationMs,
             )}, transcriptionDurationMs=${Math.round(
               result.transcriptionDurationMs,
-            )}, enhancementDurationMs=${Math.round(enhancementDurationMs)}`,
+            )}, enhancementDurationMs=${Math.round(enhancementDurationMs)}${retryCount > 0 ? `, enhancementRetryCount=${retryCount}` : ""}`,
           );
         } catch (enhanceError) {
           if (isAborted.value) return;

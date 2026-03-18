@@ -1,3 +1,7 @@
+export interface AudioInputDeviceInfo {
+  name: string;
+}
+
 export interface WaveformPayload {
   levels: number[];
 }

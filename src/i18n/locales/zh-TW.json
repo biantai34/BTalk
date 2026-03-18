@@ -120,6 +120,15 @@
       "transcriptionLanguageUpdated": "轉錄語言已更新",
       "autoDetect": "自動偵測"
     },
+    "audioInput": {
+      "title": "輸入裝置",
+      "description": "選擇錄音使用的麥克風",
+      "deviceLabel": "麥克風",
+      "systemDefault": "系統預設",
+      "refresh": "重新整理",
+      "refreshed": "已偵測到 {count} 個裝置",
+      "updated": "輸入裝置已更新"
+    },
     "recording": {
       "title": "錄音儲存管理",
       "description": "錄音檔案會在轉錄後儲存至磁碟，您可以在歷史記錄中播放或用於重新轉錄。",
@@ -249,7 +258,8 @@
       "default": "麥克風初始化失敗",
       "permission": "需要麥克風權限才能錄音",
       "notFound": "未偵測到麥克風裝置",
-      "busy": "麥克風被其他程式佔用"
+      "busy": "麥克風被其他程式佔用",
+      "configFailed": "麥克風設定讀取失敗"
     },
     "network": "網路連線中斷",
     "transcription": {
