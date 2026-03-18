@@ -1,6 +1,6 @@
-# SayIt — Claude Code 專案記憶檔
+# BTalk — Claude Code 專案記憶檔
 
-> Tauri v2 + Vue 3 + Rust 語音轉文字桌面應用
+> Tauri v2 + Vue 3 + Rust 語音轉文字桌面應用（fork of SayIt by Jackle Chen）
 > 完整規則請讀：`_bmad-output/project-context.md`（261 條）
 
 ## Quick Reference
@@ -221,7 +221,7 @@
 ### 發版硬規則
 
 - 發版版本號必須在 `git tag`、`package.json`、`src-tauri/tauri.conf.json`、`src-tauri/Cargo.toml` 四處保持一致
-- 正式版 Sentry release 一律由 `.github/workflows/release.yml` 產生，格式固定為 `sayit@<version>`
+- 正式版 Sentry release 一律由 `.github/workflows/release.yml` 產生，格式固定為 `btalk@<version>`
 - 前端與 Rust 不可各自手動指定不同的 Sentry release 名稱
 - 正式版 telemetry 與 sourcemap upload 只能走 `release.yml`，不得繞過 workflow 手動上傳
 - 發版前必須確認 GitHub Secrets 與 Sentry Secrets 齊全
@@ -248,9 +248,7 @@
 
 | 平台 | URL |
 |------|-----|
-| macOS ARM | `https://github.com/chenjackle45/SayIt/releases/latest/download/SayIt-mac-arm64.dmg` |
-| macOS Intel | `https://github.com/chenjackle45/SayIt/releases/latest/download/SayIt-mac-x64.dmg` |
-| Windows | `https://github.com/chenjackle45/SayIt/releases/latest/download/SayIt-windows-x64.exe` |
+| macOS ARM | `https://github.com/biantai34/BTalk/releases/latest/download/BTalk-mac-arm64.dmg` |
 
 ## Tauri v2 macOS 注意事項
 
