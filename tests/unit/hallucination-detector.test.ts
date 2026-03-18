@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   detectHallucination,
+  detectEnhancementAnomaly,
   SPEED_ANOMALY_MAX_DURATION_MS,
   SPEED_ANOMALY_MIN_CHARS,
   SILENCE_PEAK_ENERGY_THRESHOLD,
   SILENCE_RMS_THRESHOLD,
   SILENCE_NSP_THRESHOLD,
+  LAYER2B_PEAK_ENERGY_CEILING,
+  ENHANCEMENT_LENGTH_EXPLOSION_RATIO,
 } from "../../src/lib/hallucinationDetector";
 
 /** 正常語音的預設參數（Layer 1/2 都不觸發） */
@@ -22,6 +25,7 @@ describe("hallucinationDetector.ts", () => {
       expect(SILENCE_PEAK_ENERGY_THRESHOLD).toBe(0.02);
       expect(SILENCE_RMS_THRESHOLD).toBe(0.015);
       expect(SILENCE_NSP_THRESHOLD).toBe(0.7);
+      expect(LAYER2B_PEAK_ENERGY_CEILING).toBe(0.03);
     });
   });
 
@@ -127,11 +131,11 @@ describe("hallucinationDetector.ts", () => {
         expect(result.isHallucination).toBe(false);
       });
 
-      it("[P0] rms < 0.015 且 NSP > 0.7 → 幻覺", () => {
+      it("[P0] peak < 0.03 且 rms < 0.015 且 NSP > 0.7 → 幻覺", () => {
         const result = detectHallucination({
           rawText: "MING PAO CANADA // MING PAO TORONTO",
           recordingDurationMs: 3729,
-          peakEnergyLevel: 0.15,
+          peakEnergyLevel: 0.025,
           rmsEnergyLevel: 0.012,
           noSpeechProbability: 0.85,
         });
@@ -168,7 +172,7 @@ describe("hallucinationDetector.ts", () => {
         const result = detectHallucination({
           rawText: "一些文字",
           recordingDurationMs: 2000,
-          peakEnergyLevel: 0.15,
+          peakEnergyLevel: 0.025,
           rmsEnergyLevel: SILENCE_RMS_THRESHOLD,
           noSpeechProbability: 0.85,
         });
@@ -180,9 +184,60 @@ describe("hallucinationDetector.ts", () => {
         const result = detectHallucination({
           rawText: "一些文字",
           recordingDurationMs: 2000,
-          peakEnergyLevel: 0.15,
+          peakEnergyLevel: 0.025,
           rmsEnergyLevel: 0.012,
           noSpeechProbability: SILENCE_NSP_THRESHOLD,
+        });
+
+        expect(result.isHallucination).toBe(false);
+      });
+    });
+
+    describe("2b: peak energy escape hatch", () => {
+      it("[P0] peak >= 0.03 + 低 RMS + 高 NSP → 放行（使用者真實案例）", () => {
+        const result = detectHallucination({
+          rawText: "我覺得這個方案基本上還不錯",
+          recordingDurationMs: 5019,
+          peakEnergyLevel: 0.0347,
+          rmsEnergyLevel: 0.006,
+          noSpeechProbability: 0.89,
+        });
+
+        expect(result.isHallucination).toBe(false);
+      });
+
+      it("[P0] peak 恰好等於 ceiling (0.03) → 放行", () => {
+        const result = detectHallucination({
+          rawText: "一些文字",
+          recordingDurationMs: 2000,
+          peakEnergyLevel: LAYER2B_PEAK_ENERGY_CEILING,
+          rmsEnergyLevel: 0.01,
+          noSpeechProbability: 0.85,
+        });
+
+        expect(result.isHallucination).toBe(false);
+      });
+
+      it("[P0] peak 略低於 ceiling (0.029) → 攔截（仍在 gap zone）", () => {
+        const result = detectHallucination({
+          rawText: "一些文字",
+          recordingDurationMs: 2000,
+          peakEnergyLevel: 0.029,
+          rmsEnergyLevel: 0.01,
+          noSpeechProbability: 0.85,
+        });
+
+        expect(result.isHallucination).toBe(true);
+        expect(result.reason).toBe("no-speech-detected");
+      });
+
+      it("[P1] peak 高 (0.15) + 低 RMS + 高 NSP → 放行", () => {
+        const result = detectHallucination({
+          rawText: "一些文字",
+          recordingDurationMs: 2000,
+          peakEnergyLevel: 0.15,
+          rmsEnergyLevel: 0.012,
+          noSpeechProbability: 0.85,
         });
 
         expect(result.isHallucination).toBe(false);
@@ -202,7 +257,7 @@ describe("hallucinationDetector.ts", () => {
       expect(result.isHallucination).toBe(false);
     });
 
-    it("[P0] 實際案例：peak=0.031, rms=0.0066, NSP=0.900 → 攔截（RMS 低 + NSP 高聯合判斷）", () => {
+    it("[P0] 實際案例：peak=0.031, rms=0.0066, NSP=0.900 → 放行（peak >= 0.03 escape hatch）", () => {
       const result = detectHallucination({
         rawText: "MING PAO CANADA // MING PAO TORONTO",
         recordingDurationMs: 1388,
@@ -211,8 +266,8 @@ describe("hallucinationDetector.ts", () => {
         noSpeechProbability: 0.9,
       });
 
-      expect(result.isHallucination).toBe(true);
-      expect(result.reason).toBe("no-speech-detected");
+      // peak >= 0.03 → escape hatch 跳過 RMS+NSP 檢查 → 放行
+      expect(result.isHallucination).toBe(false);
     });
   });
 
@@ -238,6 +293,75 @@ describe("hallucinationDetector.ts", () => {
       });
 
       expect(result.isHallucination).toBe(false);
+    });
+  });
+
+  describe("增強後語意偏移偵測 (detectEnhancementAnomaly)", () => {
+    it("[P0] 常數應為 2", () => {
+      expect(ENHANCEMENT_LENGTH_EXPLOSION_RATIO).toBe(2);
+    });
+
+    it("[P0] 正常增強（長度相近）→ 放行", () => {
+      const result = detectEnhancementAnomaly({
+        rawText: "我覺得這個方案不錯",
+        enhancedText: "我覺得這個方案不錯",
+      });
+      expect(result.isAnomaly).toBe(false);
+      expect(result.reason).toBeNull();
+    });
+
+    it("[P0] 長度爆炸（超過 2 倍）→ 攔截", () => {
+      const rawText = "怎樣才能更有效率";
+      const enhancedText =
+        "要更有效率地工作，可以：1. 制定清晰目標 2. 優先處理重要事項 3. 減少不必要的會議 4. 使用生產力工具 5. 定期回顧和調整 6. 保持適當的休息 7. 學習委派任務";
+      const result = detectEnhancementAnomaly({ rawText, enhancedText });
+      expect(result.isAnomaly).toBe(true);
+      expect(result.reason).toBe("length-explosion");
+    });
+
+    it("[P0] 恰好 2 倍 → 攔截（>= 觸發）", () => {
+      const rawText = "abc";
+      const enhancedText = "abcabc"; // 恰好 2 倍
+      const result = detectEnhancementAnomaly({ rawText, enhancedText });
+      expect(result.isAnomaly).toBe(true);
+    });
+
+    it("[P0] 低於 2 倍一個字 → 放行", () => {
+      const rawText = "abc";
+      const enhancedText = "abcab"; // 5 < 6
+      const result = detectEnhancementAnomaly({ rawText, enhancedText });
+      expect(result.isAnomaly).toBe(false);
+    });
+
+    it("[P1] rawText 為空 → 放行（避免除以零）", () => {
+      const result = detectEnhancementAnomaly({
+        rawText: "",
+        enhancedText: "some text",
+      });
+      expect(result.isAnomaly).toBe(false);
+    });
+
+    it("[P1] rawText 只有空白 → 放行", () => {
+      const result = detectEnhancementAnomaly({
+        rawText: "   ",
+        enhancedText: "some text",
+      });
+      expect(result.isAnomaly).toBe(false);
+    });
+
+    it("[P1] enhancedText 為空 → 放行", () => {
+      const result = detectEnhancementAnomaly({
+        rawText: "一些文字",
+        enhancedText: "",
+      });
+      expect(result.isAnomaly).toBe(false);
+    });
+
+    it("[P1] 前後空白應 trim 後計算", () => {
+      const rawText = "  abc  ";
+      const enhancedText = "  abcabcabcd  "; // trim 後 10 > 3*3=9
+      const result = detectEnhancementAnomaly({ rawText, enhancedText });
+      expect(result.isAnomaly).toBe(true);
     });
   });
 

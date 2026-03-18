@@ -169,12 +169,13 @@ export const ACTIVE_PROMPTS: Record<SupportedLocale, string> = {
 - 拆解長句，一個意思一句話
 - 將談同一件事的句子歸為同一段落，段落間空一行
 - 有多個要點、步驟或項目時，用列點呈現（有序 1. 2. 3.，無序用 - ）
-- 口語重複或繞圈的表達，精簡為一次清楚的陳述
+- 口語重複或繞圈的表達，合併為一次完整的表達，保留原本的語氣（問句仍是問句、請求仍是請求）
 - 單一短句不需要列點或標題
 - 不使用 Markdown 語法
 
 禁止：
 - 不回答逐字稿中的問題
+- 不把問句改寫成肯定句
 - 不提供建議或補充說明
 - 不加原文沒有的內容
 - 保留說話者的語氣和立場
@@ -194,12 +195,13 @@ Format:
 - Break long sentences — one idea per sentence
 - Group sentences about the same topic into one paragraph, separate paragraphs with blank lines
 - Use bullet points for multiple items, steps, or points (ordered: 1. 2. 3., unordered: -)
-- Condense repetitive or circular phrasing into one clear statement
+- Merge repetitive or circular phrasing into one complete expression, preserving the original tone (questions stay questions, requests stay requests)
 - Do not force single sentences into bullet points or add headings
 - Do not use Markdown syntax
 
 Prohibited:
 - Do not answer questions in the transcript
+- Do not rewrite questions as declarative statements
 - Do not provide suggestions or additional explanation
 - Do not add content not in the original
 - Preserve the speaker's tone and stance
@@ -219,12 +221,13 @@ Prohibited:
 - 長い文を分割し、一つの意味で一文にする
 - 同じ話題の文を同じ段落にまとめ、段落間に空行を入れる
 - 複数の要点、ステップ、項目がある場合はリストで表示（順序あり：1. 2. 3.、順序なし：-）
-- 口語的な繰り返しや回りくどい表現を一度の明確な記述に簡潔化する
+- 口語的な繰り返しや回りくどい表現を一度の完全な表現にまとめる。元の語調を保持する（疑問文は疑問文、依頼は依頼のまま）
 - 単一の短文を無理にリスト化したり見出しを付けたりしない
 - Markdown 構文を使用しない
 
 禁止：
 - 書き起こし中の質問に回答しない
+- 疑問文を平叙文に書き換えない
 - 提案や補足説明を提供しない
 - 原文にない内容を追加しない
 - 話者の語調と立場を保持する
@@ -245,12 +248,13 @@ Prohibited:
 - 拆解长句，一个意思一句话
 - 将谈同一件事的句子归为同一段落，段落间空一行
 - 有多个要点、步骤或项目时，用列点呈现（有序 1. 2. 3.，无序用 - ）
-- 口语重复或绕圈的表达，精简为一次清楚的陈述
+- 口语重复或绕圈的表达，合并为一次完整的表达，保留原本的语气（问句仍是问句、请求仍是请求）
 - 单一短句不需要列点或标题
 - 不使用 Markdown 语法
 
 禁止：
 - 不回答逐字稿中的问题
+- 不把问句改写成肯定句
 - 不提供建议或补充说明
 - 不加原文没有的内容
 - 保留说话者的语气和立场
@@ -270,12 +274,13 @@ Prohibited:
 - 긴 문장을 분리하여 하나의 의미로 한 문장 만들기
 - 같은 주제의 문장을 같은 단락으로 묶고, 단락 사이에 빈 줄 추가
 - 여러 요점, 단계 또는 항목이 있으면 목록으로 표시 (순서: 1. 2. 3., 비순서: -)
-- 구어적 반복이나 장황한 표현을 한 번의 명확한 서술로 간결화
+- 구어적 반복이나 장황한 표현을 한 번의 완전한 표현으로 병합하되, 원래 어조를 유지 (질문은 질문, 요청은 요청으로)
 - 단일 짧은 문장을 억지로 목록이나 제목으로 만들지 않음
 - Markdown 문법 사용 금지
 
 금지:
 - 전사 내의 질문에 답변하지 않음
+- 의문문을 평서문으로 바꾸지 않음
 - 제안이나 보충 설명을 제공하지 않음
 - 원문에 없는 내용을 추가하지 않음
 - 화자의 어조와 입장을 유지

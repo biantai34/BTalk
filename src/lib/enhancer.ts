@@ -143,7 +143,7 @@ export async function enhanceText(
       { role: "system", content: fullPrompt },
       { role: "user", content: rawText },
     ],
-    temperature: 0.3,
+    temperature: 0.1,
     max_tokens: 2048,
   });
 

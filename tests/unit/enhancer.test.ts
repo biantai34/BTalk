@@ -117,7 +117,7 @@ describe("enhancer.ts", () => {
 
       const body = JSON.parse(callArgs[1].body);
       expect(body.model).toBe("qwen/qwen3-32b");
-      expect(body.temperature).toBe(0.3);
+      expect(body.temperature).toBe(0.1);
       expect(body.max_tokens).toBe(2048);
       expect(body.messages).toHaveLength(2);
       expect(body.messages[0].role).toBe("system");
