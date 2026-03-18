@@ -1,10 +1,10 @@
 ---
 project_name: 'sayit'
 user_name: 'Jackle'
-date: '2026-03-18'
+date: '2026-03-19'
 sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n', 'smart_dictionary', 'model_registry_v2', 'esc_global_abort', 'hallucination_v3', 'sound_feedback', 'enhancement_anomaly', 'audio_input_device']
 status: 'complete'
-rule_count: 275
+rule_count: 276
 optimized_for_llm: true
 ---
 
@@ -289,6 +289,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 - **Rust Command** — `list_audio_input_devices` → `Vec<AudioInputDeviceInfo>`（列舉 cpal 輸入裝置）
 - **`start_recording` 參數** — 新增 `device_name: String`，空字串 = 系統預設，依名稱查找失敗時 fallback 到預設裝置
+- **macOS cpal 0.15.3 workaround** — `input_devices()` 回傳的 Device（`is_default=false`）會觸發 disconnect listener 的 Arc 循環引用，導致 `drop(stream)` 無法釋放 AudioUnit。因此裝置查找優先比對 `default_input_device()`（`is_default=true`），並在停止時顯式呼叫 `stream.pause()` 作為兜底
 - **前端型別** — `AudioInputDeviceInfo { name: string }`（`src/types/audio.ts`）
 - **設定儲存** — `useSettingsStore.selectedAudioInputDeviceName`（預設空字串），持久化 key `audioInputDeviceName`
 - **UI** — `SettingsView.vue` 的「輸入裝置」Card，Select 元件 + 重新整理按鈕
