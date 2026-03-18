@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTalk - 變態輸入法</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3b82f6', // 科技藍
+                        secondary: '#1e40af',
+                        darkBg: '#0f172a',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 增加一點平滑滾動和漸層動畫效果 */
+        html { scroll-behavior: smooth; }
+        .gradient-text {
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero-gradient {
+            background: radial-gradient(circle at top right, #1e3a8a 0%, #0f172a 40%, #0f172a 100%);
+        }
+    </style>
+</head>
+<body class="bg-darkBg text-white font-sans antialiased selection:bg-blue-500 selection:text-white">
+
+    <!-- 導覽列 -->
+    <nav class="fixed w-full z-50 bg-darkBg/80 backdrop-blur-md border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-microphone-lines text-blue-400 text-2xl"></i>
+                    <span class="font-bold text-xl tracking-wider">BTalk (變態輸入法)</span>
+                </div>
+                <div>
+                    <a href="https://github.com/biantai34/BTalk" target="_blank" class="text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                        <i class="fa-brands fa-github text-xl"></i>
+                        <span class="hidden sm:inline">GitHub</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主視覺區域 (Hero Section) -->
+    <section class="hero-gradient relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+            <h1 class="text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+                BTalk <br class="md:hidden" />
+                <span class="gradient-text">變態輸入法</span>
+            </h1>
+            <p class="mt-4 max-w-2xl mx-auto text-xl text-gray-400 mb-10 leading-relaxed">
+                紳士般的優雅口說，變態般的文字輸出能力。<br>
+                這是一款完全免費的開源語音輸入工具，不用辛苦打字，開口就能自動轉換成文字。無論是日常筆記，還是快速記錄靈感，都能輕鬆搞定！
+            </p>
+            
+            <div class="flex flex-col items-center justify-center">
+                <div class="flex flex-col sm:flex-row justify-center gap-4 w-full">
+                    <!-- 替換成直接下載 DMG 的連結 -->
+                    <a href="https://github.com/biantai34/BTalk/releases/latest/download/BTalk.dmg" class="px-8 py-4 text-lg font-bold rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i>
+                        下載變態輸入法 DMG
+                    </a>
+                    <a href="#features" class="px-8 py-4 text-lg font-bold rounded-full bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all flex items-center justify-center">
+                        了解更多
+                    </a>
+                </div>
+                <!-- 蘋果晶片備註 -->
+                <p class="mt-6 text-sm text-gray-400 bg-gray-800/60 px-5 py-2 rounded-full border border-gray-700 inline-block">
+                    <i class="fa-brands fa-apple text-gray-300 mr-1 text-base"></i> 
+                    <span class="font-medium text-gray-300">備註：</span>目前僅支援 Apple Silicon (M1/M2/M3/M4) 蘋果晶片
+                </p>
+            </div>
+
+            <!-- 模擬應用程式介面示意圖 (Mockup) -->
+            <div class="mt-16 max-w-4xl mx-auto">
+                <div class="rounded-xl shadow-2xl overflow-hidden border border-gray-700 bg-gray-900 p-2">
+                    <div class="rounded-lg bg-black aspect-[16/9] flex flex-col items-center justify-center relative overflow-hidden group">
+                        <!-- 裝飾用背景波紋 -->
+                        <div class="absolute inset-0 flex items-center justify-center opacity-20">
+                            <div class="w-48 h-48 bg-blue-500 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                        </div>
+                        
+                        <i class="fa-solid fa-microphone text-6xl text-blue-400 mb-6 drop-shadow-[0_0_15px_rgba(59,130,246,0.5)] z-10"></i>
+                        <p class="text-2xl text-gray-300 font-light tracking-wide z-10 animate-pulse">"今天遇到一個很棒的搭訕靈感..."</p>
+                        <p class="text-sm text-gray-500 mt-4 z-10">BTalk 語音辨識中...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 特色介紹 (Features) -->
+    <section id="features" class="py-20 bg-gray-900">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">為什麼選擇 BTalk？</h2>
+                <div class="w-20 h-1 bg-blue-500 mx-auto rounded-full"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- 卡片 1 -->
+                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-blue-500/50 transition-colors">
+                    <div class="w-14 h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-bolt text-2xl text-blue-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">即說即翻，極致高效</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        省去繁瑣的打字時間，思緒到哪裡，文字就到哪裡。讓你的創作和記錄速度大幅提升。
+                    </p>
+                </div>
+
+                <!-- 卡片 2 -->
+                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-green-500/50 transition-colors">
+                    <div class="w-14 h-14 bg-green-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-hand-holding-heart text-2xl text-green-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">100% 完全免費</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        這是一個開源的 Side Project。沒有廣告打擾，沒有隱藏收費，純粹為了解決問題而生，免費分享給大家。
+                    </p>
+                </div>
+
+                <!-- 卡片 3 -->
+                <div class="bg-gray-800 p-8 rounded-2xl border border-gray-700 hover:border-purple-500/50 transition-colors">
+                    <div class="w-14 h-14 bg-purple-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <i class="fa-solid fa-code text-2xl text-purple-400"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">開源透明，安全放心</h3>
+                    <p class="text-gray-400 leading-relaxed">
+                        程式碼完全公開在 GitHub 上。無論你是開發者還是普通用戶，都能安心下載使用，不用擔心隱私外洩。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 安裝教學 (Tutorial) -->
+    <section id="tutorial" class="py-20 bg-darkBg border-t border-gray-800">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">簡單 3 步，馬上開始</h2>
+                <div class="w-20 h-1 bg-blue-500 mx-auto rounded-full"></div>
+                <p class="mt-6 text-gray-400 text-lg">BTalk 使用 Groq 提供極速的 AI 語音辨識，設定一次就能永久免費使用。</p>
+            </div>
+            
+            <div class="space-y-8">
+                <!-- 步驟 1 -->
+                <div class="bg-gray-800/50 p-6 sm:p-8 rounded-2xl border border-gray-700 flex flex-col sm:flex-row items-start gap-6 hover:border-blue-500/50 transition-colors">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-lg shadow-blue-500/30">1</div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">下載並安裝應用程式</h3>
+                        <p class="text-gray-400 leading-relaxed">點擊上方的下載按鈕取得最新的 <code class="text-blue-400 bg-blue-900/30 px-2 py-1 rounded text-sm">.dmg</code> 檔案，打開後將 BTalk 拖曳到你的「應用程式」資料夾中。</p>
+                    </div>
+                </div>
+                
+                <!-- 步驟 2 -->
+                <div class="bg-gray-800/50 p-6 sm:p-8 rounded-2xl border border-gray-700 flex flex-col sm:flex-row items-start gap-6 hover:border-blue-500/50 transition-colors">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-lg shadow-blue-500/30">2</div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">獲取免費的 Groq API Key</h3>
+                        <p class="text-gray-400 mb-4 leading-relaxed">你需要一組免費的 API 密鑰來啟用 AI 語音辨識：</p>
+                        <ul class="list-none text-gray-400 space-y-3">
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-check text-blue-500 mt-1"></i>
+                                <span>前往 <a href="https://console.groq.com/keys" target="_blank" class="text-blue-400 hover:text-blue-300 underline underline-offset-4 transition-colors">Groq Console <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1"></i></a> 並註冊 / 登入帳號。</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-check text-blue-500 mt-1"></i>
+                                <span>點擊畫面右上角的 <strong>"Create API Key"</strong> 按鈕。</span>
+                            </li>
+                            <li class="flex items-start gap-2">
+                                <i class="fa-solid fa-check text-blue-500 mt-1"></i>
+                                <span>輸入一個好記的名稱（例如 BTalk），然後<strong>複製生成的那串密碼</strong>。</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 步驟 3 -->
+                <div class="bg-gray-800/50 p-6 sm:p-8 rounded-2xl border border-gray-700 flex flex-col sm:flex-row items-start gap-6 hover:border-blue-500/50 transition-colors">
+                    <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-xl font-bold text-white shrink-0 shadow-lg shadow-blue-500/30">3</div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white mb-2">貼上密鑰，開始變態輸出！</h3>
+                        <p class="text-gray-400 leading-relaxed">打開 BTalk 應用程式，在設定畫面中貼上剛剛複製的 Groq API Key。<br>設定好你的快捷鍵，現在你可以隨時隨地用語音輸入文字了！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 底部 (Footer) -->
+    <footer class="bg-black py-12 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-center">
+            <div class="flex gap-6 mb-6">
+                <a href="https://github.com/biantai34/BTalk" target="_blank" class="text-gray-400 hover:text-white text-2xl transition-colors">
+                    <i class="fa-brands fa-github"></i>
+                </a>
+            </div>
+            <p class="text-gray-500 text-center">
+                &copy; 2026 BTalk Project by 倫倫. All rights reserved. <br>
+                <span class="text-sm">Made with ❤️ for the community.</span>
+            </p>
+        </div>
+    </footer>
+
+</body>
+</html>
