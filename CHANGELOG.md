@@ -11,6 +11,7 @@ SayIt 版本更新紀錄。
 
 ### Improved
 
+- **預設提示詞（minimal mode）全面強化**：重新定義 AI 角色為「無腦語音轉錄打字機」，新增 3 條嚴格規則（隔離指令、禁止解答翻譯、零解釋）與處理範例，徹底防止 AI 自行回答語音內容中的問句
 - Layer 2b peak energy escape hatch：peak >= 0.03 時跳過 RMS+NSP 檢查，減少小聲說話「未偵測到語音」誤報
 - Enhancer temperature 從 0.3 降至 0.1，輸出更穩定
 - Active prompt 規則：合併重複表達時保留語氣（問句仍是問句），新增禁止將問句改寫為肯定句
