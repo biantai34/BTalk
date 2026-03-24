@@ -23,20 +23,14 @@ jobs:
             args: --target aarch64-apple-darwin
             rust_target: aarch64-apple-darwin
             stable_name: BTalk-mac-arm64.dmg
-            dmg_glob: "*.dmg"
-            upload_sourcemaps: "true"
           - platform: macos-latest
             args: --target x86_64-apple-darwin
             rust_target: x86_64-apple-darwin
             stable_name: BTalk-mac-x64.dmg
-            dmg_glob: "*.dmg"
-            upload_sourcemaps: "false"
           - platform: windows-latest
             args: ""
             rust_target: ""
             stable_name: BTalk-windows-x64.exe
-            dmg_glob: ""
-            upload_sourcemaps: "false"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -56,8 +50,6 @@ jobs:
 
           echo "RELEASE_TAG=$RAW_TAG" >> "$GITHUB_ENV"
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> "$GITHUB_ENV"
-          echo "SENTRY_RELEASE=btalk@$RELEASE_VERSION" >> "$GITHUB_ENV"
-          echo "VITE_SENTRY_RELEASE=btalk@$RELEASE_VERSION" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -84,20 +76,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Apple Code Signing + Notarization (macOS only)
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
-          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-          SENTRY_ENVIRONMENT: production
-          VITE_SENTRY_ENVIRONMENT: production
-          SENTRY_RELEASE: ${{ env.SENTRY_RELEASE }}
-          VITE_SENTRY_RELEASE: ${{ env.VITE_SENTRY_RELEASE }}
-          VITE_SENTRY_SOURCEMAPS_ENABLED: ${{ matrix.upload_sourcemaps }}
         with:
           tagName: ${{ env.RELEASE_TAG }}
           releaseName: "BTalk v${{ env.RELEASE_VERSION }}"
@@ -105,27 +83,6 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
-
-      - name: Upload frontend sourcemaps to Sentry
-        if: matrix.upload_sourcemaps == 'true'
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-        shell: bash
-        run: |
-          if [ -z "${SENTRY_AUTH_TOKEN}" ] || [ -z "${SENTRY_ORG}" ] || [ -z "${SENTRY_PROJECT}" ]; then
-            echo "Sentry sourcemap upload skipped: missing Sentry release secrets."
-            exit 0
-          fi
-
-          npx @sentry/cli releases new "$SENTRY_RELEASE" || true
-          npx @sentry/cli sourcemaps upload dist/assets \
-            --release "$SENTRY_RELEASE" \
-            --url-prefix "~/assets" \
-            --validate \
-            --wait
-          npx @sentry/cli releases finalize "$SENTRY_RELEASE" || true
 
       - name: Upload stable-name asset (macOS)
         if: runner.os == 'macOS'
