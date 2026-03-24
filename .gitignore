@@ -33,3 +33,9 @@ playwright/.auth/
 # Tauri signing keys
 *.key
 *.key.pub
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
