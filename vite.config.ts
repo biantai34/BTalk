@@ -4,6 +4,8 @@ import vue from "@vitejs/plugin-vue";
 import tailwindcss from "@tailwindcss/vite";
 import { version } from "./package.json";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 const host = process.env.TAURI_DEV_HOST;
 const shouldGenerateSentrySourcemaps =
   process.env.VITE_SENTRY_SOURCEMAPS_ENABLED === "true";
@@ -12,7 +14,7 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
   },
-  plugins: [vue(), tailwindcss()],
+  plugins: [vue(), tailwindcss(), cloudflare()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
