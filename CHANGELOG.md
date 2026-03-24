@@ -2,6 +2,14 @@
 
 SayIt 版本更新紀錄。
 
+## [0.9.0] - 2026-03-24
+
+### Added
+- 新增 macOS Intel 和 Windows 下載連結
+
+### Changed
+- Release 產出檔名從 SayIt 改為 BTalk
+
 ## [0.8.8] - 2026-03-18
 
 ### Added

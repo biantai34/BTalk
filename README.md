@@ -20,6 +20,8 @@ BTalk 是基於 [SayIt](https://github.com/chenjackle45/SayIt) 的 fork，由好
 | 平台 | 下載連結 |
 |------|---------|
 | macOS (Apple Silicon) | [BTalk-mac-arm64.dmg](https://github.com/biantai34/BTalk/releases/latest/download/BTalk-mac-arm64.dmg) |
+| macOS (Intel) | [BTalk-mac-x64.dmg](https://github.com/biantai34/BTalk/releases/latest/download/BTalk-mac-x64.dmg) |
+| Windows | [BTalk-windows-x64.exe](https://github.com/biantai34/BTalk/releases/latest/download/BTalk-windows-x64.exe) |
 
 ### 前置需求
 
