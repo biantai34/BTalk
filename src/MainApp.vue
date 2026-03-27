@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   LayoutDashboard,
+  Lightbulb,
   Settings,
 } from "lucide-vue-next";
 import { useI18n } from "vue-i18n";
@@ -55,6 +56,7 @@ const navItems = computed(() => [
   { path: "/history", label: t("mainApp.nav.history"), icon: markRaw(FileText) },
   { path: "/dictionary", label: t("mainApp.nav.dictionary"), icon: markRaw(BookOpen) },
   { path: "/settings", label: t("mainApp.nav.settings"), icon: markRaw(Settings) },
+  { path: "/guide", label: t("mainApp.nav.guide"), icon: markRaw(Lightbulb) },
 ]);
 
 const route = useRoute();
