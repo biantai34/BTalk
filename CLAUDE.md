@@ -73,6 +73,8 @@
 | `play_stop_sound` | `plugins/sound_feedback.rs` | useVoiceFlowStore | — | `()` |
 | `play_error_sound` | `plugins/sound_feedback.rs` | useVoiceFlowStore | — | `()` |
 | `play_learned_sound` | `plugins/sound_feedback.rs` | NotchHud.vue | — | `()` |
+| `start_hotkey_recording` | `plugins/hotkey_listener.rs` | SettingsView | `state: State<HotkeyListenerState>` | `()` |
+| `cancel_hotkey_recording` | `plugins/hotkey_listener.rs` | SettingsView | `state: State<HotkeyListenerState>` | `()` |
 
 ### Rust → Frontend Events
 
@@ -82,6 +84,10 @@
 | `hotkey:released` | hotkey_listener.rs | `HOTKEY_RELEASED` | — |
 | `hotkey:toggled` | hotkey_listener.rs | `HOTKEY_TOGGLED` | `HotkeyEventPayload` |
 | `hotkey:error` | hotkey_listener.rs | `HOTKEY_ERROR` | `HotkeyErrorPayload` |
+| `hotkey:mode-toggle` | hotkey_listener.rs | `HOTKEY_MODE_TOGGLE` | `()` |
+| `escape:pressed` | hotkey_listener.rs | `ESCAPE_PRESSED` | `()` |
+| `hotkey:recording-captured` | hotkey_listener.rs | `HOTKEY_RECORDING_CAPTURED` | `RecordingCapturedPayload` |
+| `hotkey:recording-rejected` | hotkey_listener.rs | `HOTKEY_RECORDING_REJECTED` | `RecordingRejectedPayload` |
 | `quality-monitor:result` | keyboard_monitor.rs | `QUALITY_MONITOR_RESULT` | `QualityMonitorResultPayload` |
 | `correction-monitor:result` | keyboard_monitor.rs | `CORRECTION_MONITOR_RESULT` | `CorrectionMonitorResultPayload` |
 | `audio:waveform` | audio_recorder.rs | `AUDIO_WAVEFORM` | `WaveformPayload { levels: [f32; 6] }` |
@@ -125,6 +131,7 @@
 6. **❌ `@tabler/icons-vue`** → 只用 `lucide-vue-next`
 7. **❌ 手寫 UI 元件** → 用 shadcn-vue（new-york style），詳見下方「shadcn-vue 元件使用規則」
 8. **❌ 直接 import Tauri event API** → 用 `useTauriEvents.ts` 封裝
+9. **❌ 未經設計直接實作 UI** → 先用 Pencil MCP 完成 `design.pen` 設計稿，再寫程式碼
 
 ## shadcn-vue 元件使用規則
 
@@ -176,12 +183,27 @@
 - 主鍵：`TEXT`（UUID，前端 `crypto.randomUUID()`）
 - 參數語法：`$1, $2`（tauri-plugin-sql）
 
-## 保護檔案（Hooks 自動攔截）
+## 自動化 Hooks（`.claude/settings.json`）
+
+| Hook | 觸發時機 | 行為 |
+|------|---------|------|
+| `protect-config.sh` | PreToolUse（Edit\|Write） | 🔴 攔截 lock 檔修改、🟡 警告 config 檔修改 |
+| `typecheck.sh` | PostToolUse（Edit\|Write） | 編輯 .ts/.vue 後自動跑 `vue-tsc --noEmit`（非阻斷，僅報告錯誤） |
+| `rustfmt.sh` | PostToolUse（Edit\|Write） | 編輯 .rs 後自動執行 `rustfmt`（非阻斷） |
+| `eslint.sh` | PostToolUse（Edit\|Write） | 編輯 .ts/.vue 後自動 `eslint --fix`（跳過 `components/ui/`） |
+
+### 保護檔案
 
 | 檔案 | 保護等級 |
 |------|---------|
 | `Cargo.lock`, `pnpm-lock.yaml` | 🔴 Hard block（禁止修改） |
 | `tauri.conf.json`, `Cargo.toml` | 🟡 警告（需確認必要性） |
+
+## 開發環境需求
+
+- **Node.js 24**（見 `.nvmrc`）
+- **pnpm 10.28.2**（`corepack enable && corepack prepare`）
+- **Rust stable**（`rustup default stable`）
 
 ## 常用指令
 
