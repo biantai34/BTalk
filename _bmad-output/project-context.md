@@ -1,10 +1,10 @@
 ---
 project_name: 'sayit'
 user_name: 'Jackle'
-date: '2026-03-27'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n', 'smart_dictionary', 'model_registry_v2', 'esc_global_abort', 'hallucination_v3', 'sound_feedback', 'enhancement_anomaly', 'audio_input_device', 'audio_preview', 'combo_hotkey', 'rust_driven_recording']
+date: '2026-03-28'
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n', 'smart_dictionary', 'model_registry_v2', 'esc_global_abort', 'hallucination_v3', 'sound_feedback', 'enhancement_anomaly', 'audio_input_device', 'audio_preview', 'combo_hotkey', 'rust_driven_recording', 'edit_mode', 'feature_guide']
 status: 'complete'
-rule_count: 303
+rule_count: 318
 optimized_for_llm: true
 ---
 
@@ -156,6 +156,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Plugin 模式** — 每個功能模組是獨立的 `TauriPlugin<R>`，在 `plugins/mod.rs` 中 `pub mod` 匯出（目前：`clipboard_paste`, `hotkey_listener`, `keyboard_monitor`, `audio_control`, `audio_recorder`, `transcription`, `sound_feedback`, `text_field_reader`）。`hotkey_listener` 額外提供 `reset_hotkey_state` command（ESC 中斷後重置 toggle 狀態）。`sound_feedback` 提供 `play_start_sound`/`play_stop_sound`/`play_error_sound`/`play_learned_sound` commands，前端透過 `playSoundIfEnabled()` 依 `isSoundEffectsEnabled` 設定條件呼叫
 - **audio_recorder 錄音檔管理 Commands（Story 4.4）** — `save_recording_file`（寫入 WAV 至 `{APP_DATA}/recordings/`）、`read_recording_file`（接受 `id` 參數，Rust 端組合路徑讀取 WAV 位元組，回傳 `Response`）、`delete_all_recordings`（清除所有錄音檔）、`cleanup_old_recordings`（按天數清理過期檔案，回傳被刪除的 transcription ID list）
 - **transcription 重送 Command（Story 4.5）** — `retranscribe_from_file`（從磁碟讀取 WAV 重新轉錄），內部共用 `send_transcription_request()` 函式（與 `transcribe_audio` 共用 Groq API 邏輯，避免重複實作）
+- **text_field_reader: `read_selected_text` command** — 使用 `AXSelectedText` 屬性讀取選取文字（比 `AXSelectedTextRange` 切片更可靠）。`FocusedElementContext` struct 封裝共用 AX 走訪邏輯（system-wide → focused app → element → role check → WebArea child），`read_focused_text_field_impl` 和 `get_selected_text_impl` 共用此結構，呼叫端負責 `cleanup()`
 - **Plugin State shutdown 慣例** — 每個 Plugin State struct 必須實作 `pub fn shutdown(&self)` 方法，用於 App 退出時清理資源（停止錄音、恢復音量、取消 CGEventTap 等）。`shutdown()` 內部必須處理 `Mutex` poisoned 的情況（`match lock() { Err(_) => return }`）
 - **Serde JSON 序列化** — Rust → 前端的 payload struct 使用 `#[serde(rename_all = "camelCase")]` 確保前端收到 camelCase JSON
 - **Crate 命名** — `name = "sayit_lib"`，`crate-type = ["staticlib", "cdylib", "rlib"]`
@@ -320,6 +321,21 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **長度爆炸偵測** — `enhancedText.length >= rawText.length * 2`（`ENHANCEMENT_LENGTH_EXPLOSION_RATIO = 2`）→ LLM 在回答問題或產生幻覺
 - **重試機制** — `useVoiceFlowStore` 偵測到異常後自動重試（最多 `MAX_ENHANCEMENT_RETRY_COUNT = 3` 次），重試仍異常則 fallback 到 rawText（`wasEnhanced: false`）
 - **整合位置** — `handleStopRecording()` 在 `enhanceText()` 之後，`completePasteFlow()` 之前
+- **⚠️ Edit Mode 不適用** — 編輯操作合法改變文字長度（翻譯、摘要），禁止對 edit mode 結果做異常偵測
+
+#### Edit Mode（編輯選取文字）
+
+- **偵測邏輯** — `handleStartRecording` 中非阻塞呼叫 `read_selected_text`（`.then()` 設定 `editSourceText`），不阻塞開始音效和錄音
+- **狀態推導** — `isEditMode` 是 `computed(() => editSourceText.value !== null)`，不是獨立 ref。只需設定 `editSourceText` 即可
+- **流程分支** — transcription 成功後，`isEditMode && editSourceText` 為真時走 `handleEditModeFlow()`，否則走既有增強流程
+- **Prompt 結構** — system prompt = `EDIT_MODE_PROMPTS[locale]` + `<instruction>語音指令</instruction>`，user message = 選取的文字。不傳 `vocabularyTermList`
+- **maxTokens** — edit mode 使用 `EDIT_MODE_MAX_TOKENS = 4096`（既有增強為 2048），因選取文字可能很長
+- **失敗不貼上** — 編輯模式 LLM 失敗必須呼叫 `failRecordingFlow()` 而非 fallback 貼上。貼上語音指令（如「翻譯成英文」）會覆蓋使用者原本選取的文字
+- **HudStatus** — 新增 `"editing"` 狀態，HUD 視覺複用 `"transcribing"` 動畫，錄音時顯示琥珀色「編輯」badge（`.hud-badge.edit-mode-badge`）
+- **DB** — migration v7→v8：`is_edit_mode INTEGER NOT NULL DEFAULT 0`、`edit_source_text TEXT`
+- **TranscriptionRecord** — 新增 `isEditMode: boolean`、`editSourceText: string | null`
+- **SQL 欄位清單** — `useHistoryStore.ts` 使用 `TRANSCRIPTION_SELECT_COLUMNS` 共用常數，新增欄位時只改一處
+- **ESC 中斷** — `handleEscapeAbort()` 重置 `editSourceText = null`（`isEditMode` 自動推導為 false）
 
 #### 音訊輸入裝置選擇
 
@@ -560,8 +576,9 @@ src/
 │   ├── useVocabularyStore.ts    # 詞彙字典 CRUD + 權重系統 + AI 推薦詞管理
 │   └── useVoiceFlowStore.ts     # 錄音/轉錄/AI 整理/貼上/修正偵測/字典學習完整流程
 ├── views/                # Main Window 頁面
-│   ├── DashboardView.vue    # 統計卡片 + 最近轉錄列表
-│   ├── HistoryView.vue      # 歷史記錄搜尋與管理
+│   ├── DashboardView.vue      # 統計卡片 + 最近轉錄列表
+│   ├── FeatureGuideView.vue   # 功能介紹頁（8 張功能卡片）
+│   ├── HistoryView.vue        # 歷史記錄搜尋與管理
 │   ├── DictionaryView.vue   # 詞彙字典 CRUD
 │   └── SettingsView.vue     # 快捷鍵 / API Key / AI Prompt / Prompt Mode 切換 設定
 ├── types/                # TypeScript 型別定義
@@ -703,6 +720,9 @@ src/
 - **❌ 使用 ESC（keycode 53 / VK 0x1B）作為 Custom trigger key** — ESC 已保留為全域中斷鍵，`keycodeMap.ts` 的 `getDangerousKeyWarning("Escape")` 回傳 null（不走 warning 路徑），由 `getEscapeReservedMessage()` 提供 hard block 錯誤訊息
 - **❌ 重送成功時 INSERT 新 transcription 記錄** — 重送路徑必須使用 `completePasteFlow({ skipRecordSaving: true })` + `updateTranscriptionOnRetrySuccess()` UPDATE 現有 failed 記錄，禁止 INSERT（PK 衝突 + FK 787 錯誤）
 - **❌ 重送的 API usage 不等 transcription UPDATE 完成** — `saveApiUsageRecordList` 必須串接在 `updateTranscriptionOnRetrySuccess().then()` 之後，確保 FK 依賴正確
+- **❌ `read_selected_text` 用 await 阻塞 hot path** — 必須用 `.then()` 非阻塞呼叫，避免 AX IPC 延遲影響開始音效。結果在 `handleStopRecording` 前早已就緒
+- **❌ 編輯失敗時貼上任何東西** — edit mode LLM 失敗必須走 `failRecordingFlow()`，禁止 fallback 貼上語音指令（會覆蓋使用者選取的原文）
+- **❌ edit mode 使用 `detectEnhancementAnomaly`** — 翻譯/摘要會合法改變長度，禁止對 edit mode 結果做長度爆炸偵測
 - **❌ 在幻覺偵測中單獨依賴 NSP** — `noSpeechProbability` 不可靠（Whisper 對中文軟音常報高 NSP），只能搭配 peak + RMS 能量作為輔助信號（Layer 2b），不可單獨用於判斷
 - **❌ 使用 peakEnergyLevel 判斷「有沒有人說話」** — peak 只反映瞬時最大振幅，背景噪音也能達到 0.15+。但 peak >= 0.03 可作為 Layer 2b 的 escape hatch，跳過 RMS+NSP 檢查避免小聲說話誤判
 
