@@ -45,13 +45,16 @@
 | Command | Rust 位置 | 前端呼叫點 | 參數 | 回傳 |
 |---------|-----------|-----------|------|------|
 | `debug_log` | `lib.rs` | stores, main-window.ts | `level: String, message: String` | `()` |
+| `request_app_restart` | `lib.rs` | main-window.ts | — | `()` |
 | `update_hotkey_config` | `lib.rs` | useSettingsStore | `trigger_key: TriggerKey, trigger_mode: TriggerMode` | `Result<(), String>` |
 | `get_hud_target_position` | `lib.rs` | — | `app: AppHandle` | `Result<HudTargetPosition, String>` |
 | `paste_text` | `plugins/clipboard_paste.rs` | useVoiceFlowStore | `text: String` | `Result<(), ClipboardError>` |
 | `copy_to_clipboard` | `plugins/clipboard_paste.rs` | HistoryView | `text: String` | `Result<(), ClipboardError>` |
+| `capture_target_window` | `plugins/clipboard_paste.rs` | useVoiceFlowStore | — | `()` |
 | `check_accessibility_permission_command` | `plugins/hotkey_listener.rs` | AccessibilityGuide.vue | — | `bool` |
 | `open_accessibility_settings` | `plugins/hotkey_listener.rs` | AccessibilityGuide.vue | — | `Result<(), String>` |
 | `reinitialize_hotkey_listener` | `plugins/hotkey_listener.rs` | AccessibilityGuide.vue | `app: AppHandle` | `Result<(), String>` |
+| `reset_hotkey_state` | `plugins/hotkey_listener.rs` | useVoiceFlowStore | `state: State<HotkeyListenerState>` | `()` |
 | `start_quality_monitor` | `plugins/keyboard_monitor.rs` | useVoiceFlowStore | `app: AppHandle` | `()` |
 | `start_correction_monitor` | `plugins/keyboard_monitor.rs` | useVoiceFlowStore | `app: AppHandle` | `()` |
 | `read_focused_text_field` | `plugins/text_field_reader.rs` | useVoiceFlowStore | — | `Result<Option<String>, String>` |
@@ -115,7 +118,7 @@
 ```
   views/ ──→ components/ + stores/ + composables/
   stores/ ──→ lib/
-  lib/ ──→ External APIs (Groq)
+  lib/ ──→ External APIs (Groq / OpenAI / Anthropic)
 
   ❌ views/ 不可直接 import lib/
   ❌ 元件不可直接執行 SQL
