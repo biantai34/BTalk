@@ -48,13 +48,14 @@ import { emitEvent, SETTINGS_UPDATED } from "../composables/useTauriEvents";
 import type { SettingsUpdatedPayload } from "../types/events";
 import {
   DEFAULT_LLM_MODEL_ID,
-  DEFAULT_VOCABULARY_ANALYSIS_MODEL_ID,
+  DEFAULT_LLM_PROVIDER_ID,
   DEFAULT_WHISPER_MODEL_ID,
   getEffectiveLlmModelId,
-  getEffectiveVocabularyAnalysisModelId,
   getEffectiveWhisperModelId,
+  getDefaultModelIdForProvider,
+  findLlmModelConfig,
   type LlmModelId,
-  type VocabularyAnalysisModelId,
+  type LlmProviderId,
   type WhisperModelId,
 } from "../lib/modelRegistry";
 
@@ -105,11 +106,21 @@ export const useSettingsStore = defineStore("settings", () => {
   const enhancementThresholdCharCount = ref(
     DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT,
   );
+  const selectedLlmProviderId = ref<LlmProviderId>(DEFAULT_LLM_PROVIDER_ID);
   const selectedLlmModelId = ref<LlmModelId>(DEFAULT_LLM_MODEL_ID);
-  const selectedVocabularyAnalysisModelId = ref<VocabularyAnalysisModelId>(
-    DEFAULT_VOCABULARY_ANALYSIS_MODEL_ID,
-  );
   const selectedWhisperModelId = ref<WhisperModelId>(DEFAULT_WHISPER_MODEL_ID);
+  const openaiApiKey = ref<string>("");
+  const anthropicApiKey = ref<string>("");
+  const hasLlmApiKey = computed(() => {
+    switch (selectedLlmProviderId.value) {
+      case "groq":
+        return apiKey.value !== "";
+      case "openai":
+        return openaiApiKey.value !== "";
+      case "anthropic":
+        return anthropicApiKey.value !== "";
+    }
+  });
   const customTriggerKey = ref<CustomTriggerKey | ComboTriggerKey | null>(null);
   const isMuteOnRecordingEnabled = ref<boolean>(DEFAULT_MUTE_ON_RECORDING);
   const isSmartDictionaryEnabled = ref<boolean>(
@@ -137,6 +148,17 @@ export const useSettingsStore = defineStore("settings", () => {
 
   function getApiKey(): string {
     return apiKey.value;
+  }
+
+  function getLlmApiKey(): string {
+    switch (selectedLlmProviderId.value) {
+      case "groq":
+        return apiKey.value;
+      case "openai":
+        return openaiApiKey.value;
+      case "anthropic":
+        return anthropicApiKey.value;
+    }
   }
 
   async function syncHotkeyConfigToRust(key: TriggerKey, mode: TriggerMode) {
@@ -251,30 +273,48 @@ export const useSettingsStore = defineStore("settings", () => {
       enhancementThresholdCharCount.value =
         savedThresholdCharCount ?? DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT;
 
+      // LLM Provider
+      const savedLlmProviderId =
+        await store.get<LlmProviderId>("llmProviderId");
+      selectedLlmProviderId.value = savedLlmProviderId ?? DEFAULT_LLM_PROVIDER_ID;
+
+      // OpenAI / Anthropic API keys
+      const savedOpenaiApiKey = await store.get<string>("openaiApiKey");
+      openaiApiKey.value = savedOpenaiApiKey?.trim() ?? "";
+      const savedAnthropicApiKey = await store.get<string>("anthropicApiKey");
+      anthropicApiKey.value = savedAnthropicApiKey?.trim() ?? "";
+
+      // LLM Model ID（含 Kimi K2 遷移）
       const savedLlmModelId = await store.get<string>("llmModelId");
-      const effectiveLlmModelId = getEffectiveLlmModelId(
-        savedLlmModelId ?? null,
+      const llmMigratedFromKimiK2 = await store.get<boolean>(
+        "llmMigratedFromKimiK2",
       );
-      // v0.8.7 一次性遷移：強制切換到 Kimi K2（使用者可在設定中改回）
-      const llmMigratedToKimiK2 = await store.get<boolean>(
-        "llmMigratedToKimiK2",
-      );
-      if (!llmMigratedToKimiK2) {
+      if (
+        !llmMigratedFromKimiK2 &&
+        savedLlmModelId === "moonshotai/kimi-k2-instruct"
+      ) {
         selectedLlmModelId.value = DEFAULT_LLM_MODEL_ID;
+        selectedLlmProviderId.value = "groq";
         await store.set("llmModelId", DEFAULT_LLM_MODEL_ID);
-        await store.set("llmMigratedToKimiK2", true);
+        await store.set("llmProviderId", "groq");
+        await store.set("llmMigratedFromKimiK2", true);
         await store.save();
       } else {
+        const effectiveLlmModelId = getEffectiveLlmModelId(
+          savedLlmModelId ?? null,
+        );
         selectedLlmModelId.value = effectiveLlmModelId;
       }
 
-      const savedVocabularyAnalysisModelId = await store.get<string>(
-        "vocabularyAnalysisModelId",
-      );
-      selectedVocabularyAnalysisModelId.value =
-        getEffectiveVocabularyAnalysisModelId(
-          savedVocabularyAnalysisModelId ?? null,
+      // model-provider 交叉驗證：防止 key 洩漏到錯誤 provider
+      const modelConfig = findLlmModelConfig(selectedLlmModelId.value);
+      if (modelConfig && modelConfig.providerId !== selectedLlmProviderId.value) {
+        selectedLlmModelId.value = getDefaultModelIdForProvider(
+          selectedLlmProviderId.value,
         );
+        await store.set("llmModelId", selectedLlmModelId.value);
+        await store.save();
+      }
 
       const savedWhisperModelId = await store.get<string>("whisperModelId");
       selectedWhisperModelId.value = getEffectiveWhisperModelId(
@@ -695,25 +735,139 @@ export const useSettingsStore = defineStore("settings", () => {
     }
   }
 
-  async function saveVocabularyAnalysisModel(id: VocabularyAnalysisModelId) {
+  async function saveLlmProvider(providerId: LlmProviderId) {
     try {
       const store = await load(STORE_NAME);
-      await store.set("vocabularyAnalysisModelId", id);
+      await store.set("llmProviderId", providerId);
+
+      // 切換 provider 時重設為該 provider 預設模型
+      const defaultModelId = getDefaultModelIdForProvider(providerId);
+      await store.set("llmModelId", defaultModelId);
       await store.save();
-      selectedVocabularyAnalysisModelId.value = id;
+
+      selectedLlmProviderId.value = providerId;
+      selectedLlmModelId.value = defaultModelId;
 
       const payload: SettingsUpdatedPayload = {
-        key: "vocabularyAnalysisModel",
-        value: id,
+        key: "llmProvider",
+        value: providerId,
       };
       await emitEvent(SETTINGS_UPDATED, payload);
-      console.log(`[useSettingsStore] Vocabulary analysis model saved: ${id}`);
+      console.log(
+        `[useSettingsStore] LLM provider saved: ${providerId}, model reset to: ${defaultModelId}`,
+      );
     } catch (err) {
       console.error(
-        "[useSettingsStore] saveVocabularyAnalysisModel failed:",
+        "[useSettingsStore] saveLlmProvider failed:",
+        extractErrorMessage(err),
+      );
+      captureError(err, { source: "settings", step: "save-llm-provider" });
+      throw err;
+    }
+  }
+
+  async function saveOpenaiApiKey(key: string) {
+    const trimmedKey = key.trim();
+    if (trimmedKey === "") {
+      throw new Error(i18n.global.t("errors.apiKeyEmpty"));
+    }
+    try {
+      const store = await load(STORE_NAME);
+      await store.set("openaiApiKey", trimmedKey);
+      await store.save();
+      openaiApiKey.value = trimmedKey;
+      console.log("[useSettingsStore] OpenAI API Key saved");
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] saveOpenaiApiKey failed:",
+        extractErrorMessage(err),
+      );
+      captureError(err, { source: "settings", step: "save-openai-api-key" });
+      throw err;
+    }
+  }
+
+  async function deleteOpenaiApiKey() {
+    try {
+      const store = await load(STORE_NAME);
+      await store.delete("openaiApiKey");
+      await store.save();
+      openaiApiKey.value = "";
+      console.log("[useSettingsStore] OpenAI API Key deleted");
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] deleteOpenaiApiKey failed:",
         extractErrorMessage(err),
       );
       throw err;
+    }
+  }
+
+  async function saveAnthropicApiKey(key: string) {
+    const trimmedKey = key.trim();
+    if (trimmedKey === "") {
+      throw new Error(i18n.global.t("errors.apiKeyEmpty"));
+    }
+    try {
+      const store = await load(STORE_NAME);
+      await store.set("anthropicApiKey", trimmedKey);
+      await store.save();
+      anthropicApiKey.value = trimmedKey;
+      console.log("[useSettingsStore] Anthropic API Key saved");
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] saveAnthropicApiKey failed:",
+        extractErrorMessage(err),
+      );
+      captureError(err, {
+        source: "settings",
+        step: "save-anthropic-api-key",
+      });
+      throw err;
+    }
+  }
+
+  async function deleteAnthropicApiKey() {
+    try {
+      const store = await load(STORE_NAME);
+      await store.delete("anthropicApiKey");
+      await store.save();
+      anthropicApiKey.value = "";
+      console.log("[useSettingsStore] Anthropic API Key deleted");
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] deleteAnthropicApiKey failed:",
+        extractErrorMessage(err),
+      );
+      throw err;
+    }
+  }
+
+  async function refreshLlmApiKey() {
+    try {
+      const store = await load(STORE_NAME);
+      switch (selectedLlmProviderId.value) {
+        case "groq": {
+          const savedApiKey = await store.get<string>("groqApiKey");
+          apiKey.value = savedApiKey?.trim() ?? "";
+          break;
+        }
+        case "openai": {
+          const savedKey = await store.get<string>("openaiApiKey");
+          openaiApiKey.value = savedKey?.trim() ?? "";
+          break;
+        }
+        case "anthropic": {
+          const savedKey = await store.get<string>("anthropicApiKey");
+          anthropicApiKey.value = savedKey?.trim() ?? "";
+          break;
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[useSettingsStore] refreshLlmApiKey failed:",
+        extractErrorMessage(err),
+      );
     }
   }
 
@@ -985,11 +1139,12 @@ export const useSettingsStore = defineStore("settings", () => {
       const savedThresholdCharCount = await store.get<number>(
         "enhancementThresholdCharCount",
       );
+      const savedLlmProviderId =
+        await store.get<LlmProviderId>("llmProviderId");
       const savedLlmModelId = await store.get<string>("llmModelId");
-      const savedVocabModelId = await store.get<string>(
-        "vocabularyAnalysisModelId",
-      );
       const savedWhisperModelId = await store.get<string>("whisperModelId");
+      const savedOpenaiKey = await store.get<string>("openaiApiKey");
+      const savedAnthropicKey = await store.get<string>("anthropicApiKey");
       const savedMuteOnRecording = await store.get<boolean>("muteOnRecording");
       const savedSoundEffects = await store.get<boolean>("soundEffectsEnabled");
       const savedSmartDictionary = await store.get<boolean>(
@@ -1039,11 +1194,18 @@ export const useSettingsStore = defineStore("settings", () => {
         savedThresholdEnabled ?? DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED;
       enhancementThresholdCharCount.value =
         savedThresholdCharCount ?? DEFAULT_ENHANCEMENT_THRESHOLD_CHAR_COUNT;
-      selectedLlmModelId.value = getEffectiveLlmModelId(
+      selectedLlmProviderId.value =
+        savedLlmProviderId ?? DEFAULT_LLM_PROVIDER_ID;
+      const effectiveCrossWindowModelId = getEffectiveLlmModelId(
         savedLlmModelId ?? null,
       );
-      selectedVocabularyAnalysisModelId.value =
-        getEffectiveVocabularyAnalysisModelId(savedVocabModelId ?? null);
+      const crossWindowModelConfig = findLlmModelConfig(effectiveCrossWindowModelId);
+      selectedLlmModelId.value =
+        crossWindowModelConfig?.providerId === selectedLlmProviderId.value
+          ? effectiveCrossWindowModelId
+          : getDefaultModelIdForProvider(selectedLlmProviderId.value);
+      openaiApiKey.value = savedOpenaiKey?.trim() ?? "";
+      anthropicApiKey.value = savedAnthropicKey?.trim() ?? "";
       selectedWhisperModelId.value = getEffectiveWhisperModelId(
         savedWhisperModelId ?? null,
       );
@@ -1109,10 +1271,14 @@ export const useSettingsStore = defineStore("settings", () => {
     isAutoStartEnabled,
     isEnhancementThresholdEnabled,
     enhancementThresholdCharCount,
+    selectedLlmProviderId,
     selectedLlmModelId,
-    selectedVocabularyAnalysisModelId,
     selectedWhisperModelId,
+    hasLlmApiKey,
+    openaiApiKey: computed(() => openaiApiKey.value),
+    anthropicApiKey: computed(() => anthropicApiKey.value),
     getApiKey,
+    getLlmApiKey,
     getAiPrompt,
     savePromptMode,
     consumeUpgradeNotice,
@@ -1141,7 +1307,12 @@ export const useSettingsStore = defineStore("settings", () => {
     deleteApiKey,
     saveEnhancementThreshold,
     saveLlmModel,
-    saveVocabularyAnalysisModel,
+    saveLlmProvider,
+    saveOpenaiApiKey,
+    deleteOpenaiApiKey,
+    saveAnthropicApiKey,
+    deleteAnthropicApiKey,
+    refreshLlmApiKey,
     saveWhisperModel,
     isMuteOnRecordingEnabled,
     saveMuteOnRecording,

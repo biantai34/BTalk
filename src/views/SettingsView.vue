@@ -32,16 +32,15 @@ import {
   getKeyDisplayNameByKeycode,
 } from "../lib/keycodeMap";
 import {
-  LLM_MODEL_LIST,
-  VOCABULARY_ANALYSIS_MODEL_LIST,
   WHISPER_MODEL_LIST,
   findLlmModelConfig,
-  findVocabularyAnalysisModelConfig,
   findWhisperModelConfig,
+  getModelListByProvider,
   type LlmModelId,
-  type VocabularyAnalysisModelId,
+  type LlmProviderId,
   type WhisperModelId,
 } from "../lib/modelRegistry";
+import { LLM_PROVIDER_LIST, findProviderConfig } from "../lib/llmProvider";
 import {
   LANGUAGE_OPTIONS,
   TRANSCRIPTION_LANGUAGE_OPTIONS,
@@ -516,8 +515,13 @@ const whisperModelDescription = computed(() => {
 const llmModelDescription = computed(() => {
   const config = findLlmModelConfig(settingsStore.selectedLlmModelId);
   if (!config) return "";
-  return `${config.speedTps} TPS · $${config.inputCostPerMillion}/$${config.outputCostPerMillion} per M tokens`;
+  const tpsInfo = config.speedTps > 0 ? `${config.speedTps} TPS · ` : "";
+  return `${tpsInfo}$${config.inputCostPerMillion}/$${config.outputCostPerMillion} per M tokens`;
 });
+
+const providerModelList = computed(() =>
+  getModelListByProvider(settingsStore.selectedLlmProviderId),
+);
 
 async function handleWhisperModelChange(newId: WhisperModelId) {
   try {
@@ -534,6 +538,60 @@ async function handleLlmModelChange(newId: LlmModelId) {
     modelFeedback.show("success", t("settings.model.llmUpdated"));
   } catch (err) {
     modelFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+// ── LLM Provider ────────────────────────────────────────────
+const providerFeedback = useFeedbackMessage();
+const openaiApiKeyInput = ref("");
+const anthropicApiKeyInput = ref("");
+const isOpenaiApiKeyVisible = ref(false);
+const isAnthropicApiKeyVisible = ref(false);
+
+async function handleProviderChange(providerId: LlmProviderId) {
+  try {
+    await settingsStore.saveLlmProvider(providerId);
+    providerFeedback.show("success", t("settings.model.llmUpdated"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleSaveOpenaiApiKey() {
+  try {
+    await settingsStore.saveOpenaiApiKey(openaiApiKeyInput.value);
+    openaiApiKeyInput.value = "";
+    providerFeedback.show("success", t("settings.apiKey.saved"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleDeleteOpenaiApiKey() {
+  try {
+    await settingsStore.deleteOpenaiApiKey();
+    providerFeedback.show("success", t("settings.apiKey.deleted"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleSaveAnthropicApiKey() {
+  try {
+    await settingsStore.saveAnthropicApiKey(anthropicApiKeyInput.value);
+    anthropicApiKeyInput.value = "";
+    providerFeedback.show("success", t("settings.apiKey.saved"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleDeleteAnthropicApiKey() {
+  try {
+    await settingsStore.deleteAnthropicApiKey();
+    providerFeedback.show("success", t("settings.apiKey.deleted"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
   }
 }
 
@@ -595,32 +653,10 @@ async function handleTranscriptionLocaleChange(newLocale: TranscriptionLocale) {
 // ── 智慧字典學習 ────────────────────────────────────────────
 const smartDictionaryFeedback = useFeedbackMessage();
 
-const vocabularyAnalysisModelDescription = computed(() => {
-  const config = findVocabularyAnalysisModelConfig(
-    settingsStore.selectedVocabularyAnalysisModelId,
-  );
-  if (!config) return "";
-  return `${config.speedTps} TPS · $${config.inputCostPerMillion}/$${config.outputCostPerMillion} per M tokens`;
-});
-
 async function handleToggleSmartDictionary(newValue: boolean) {
   try {
     await settingsStore.saveSmartDictionaryEnabled(newValue);
     smartDictionaryFeedback.show("success", t("common.save"));
-  } catch (err) {
-    smartDictionaryFeedback.show("error", extractErrorMessage(err));
-  }
-}
-
-async function handleVocabularyAnalysisModelChange(
-  newId: VocabularyAnalysisModelId,
-) {
-  try {
-    await settingsStore.saveVocabularyAnalysisModel(newId);
-    smartDictionaryFeedback.show(
-      "success",
-      t("settings.smartDictionary.analysisModelUpdated"),
-    );
   } catch (err) {
     smartDictionaryFeedback.show("error", extractErrorMessage(err));
   }
@@ -790,6 +826,7 @@ onBeforeUnmount(() => {
   autoStartFeedback.clearTimer();
   smartDictionaryFeedback.clearTimer();
   recordingCleanupFeedback.clearTimer();
+  providerFeedback.clearTimer();
   clearTimeout(deleteConfirmTimeoutId);
   clearTimeout(resetPromptConfirmTimeoutId);
 });
@@ -1127,31 +1164,144 @@ onBeforeUnmount(() => {
           <p class="text-xs text-muted-foreground">{{ whisperModelDescription }}</p>
         </div>
 
-        <!-- LLM 模型 -->
-        <div class="space-y-2">
-          <Label for="llm-model">{{ $t("settings.model.llmLabel") }}</Label>
-          <Select
-            :model-value="settingsStore.selectedLlmModelId"
-            @update:model-value="handleLlmModelChange($event as LlmModelId)"
+        <Separator />
+
+        <!-- LLM Provider 選擇 -->
+        <div class="space-y-3">
+          <Label>{{ $t("settings.provider.title") }}</Label>
+          <p class="text-xs text-muted-foreground">{{ $t("settings.provider.description") }}</p>
+          <RadioGroup
+            :model-value="settingsStore.selectedLlmProviderId"
+            class="grid grid-cols-3 gap-2"
+            @update:model-value="(v: unknown) => handleProviderChange(v as LlmProviderId)"
           >
-            <SelectTrigger id="llm-model" class="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="model in LLM_MODEL_LIST"
-                :key="model.id"
-                :value="model.id"
-              >
-                {{ model.displayName }}
-                <template #extra>
-                  <Badge variant="secondary" class="ml-2 text-xs">{{ $t(model.badgeKey) }}</Badge>
-                </template>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-xs text-muted-foreground">{{ llmModelDescription }}</p>
+            <Label
+              v-for="provider in LLM_PROVIDER_LIST"
+              :key="provider.id"
+              :for="`provider-${provider.id}`"
+              class="flex cursor-pointer items-center gap-2.5 rounded-md border border-border p-3 transition-colors"
+              :class="settingsStore.selectedLlmProviderId === provider.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'"
+            >
+              <RadioGroupItem :id="`provider-${provider.id}`" :value="provider.id" class="!size-0 !border-0 !shadow-none overflow-hidden" />
+              <span class="text-sm font-medium">{{ $t(`settings.provider.${provider.id}`) }}</span>
+            </Label>
+          </RadioGroup>
         </div>
+
+        <!-- Provider-specific API Key -->
+        <div v-if="settingsStore.selectedLlmProviderId === 'groq'" class="rounded-md bg-muted/50 p-3">
+          <p class="text-xs text-muted-foreground">{{ $t("settings.provider.groqNote") }}</p>
+        </div>
+
+        <div v-else-if="settingsStore.selectedLlmProviderId === 'openai'" class="space-y-2">
+          <Label for="openai-api-key">{{ $t("settings.providerApiKey.openaiTitle") }}</Label>
+          <div v-if="settingsStore.openaiApiKey" class="flex items-center gap-2">
+            <Input
+              id="openai-api-key"
+              :model-value="isOpenaiApiKeyVisible ? settingsStore.openaiApiKey : '••••••••••'"
+              readonly
+              class="flex-1 font-mono text-xs"
+            />
+            <Button variant="ghost" size="sm" @click="isOpenaiApiKeyVisible = !isOpenaiApiKeyVisible">
+              {{ isOpenaiApiKeyVisible ? $t('settings.apiKey.hide') : $t('settings.apiKey.show') }}
+            </Button>
+            <Button variant="ghost" size="sm" class="text-destructive" @click="handleDeleteOpenaiApiKey">
+              {{ $t('settings.apiKey.delete') }}
+            </Button>
+          </div>
+          <div v-else class="flex gap-2">
+            <Input
+              id="openai-api-key"
+              v-model="openaiApiKeyInput"
+              type="password"
+              :placeholder="findProviderConfig('openai')?.apiKeyPrefix + '...'"
+              class="flex-1 font-mono text-xs"
+            />
+            <Button size="sm" :disabled="!openaiApiKeyInput.trim()" @click="handleSaveOpenaiApiKey">
+              {{ $t('common.save') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ $t("settings.providerApiKey.openaiInstruction") }}
+            ·
+            <a :href="findProviderConfig('openai')?.consoleUrl" target="_blank" rel="noopener noreferrer" class="underline">{{ $t("settings.providerApiKey.goToOpenai") }}</a>
+          </p>
+        </div>
+
+        <div v-else-if="settingsStore.selectedLlmProviderId === 'anthropic'" class="space-y-2">
+          <Label for="anthropic-api-key">{{ $t("settings.providerApiKey.anthropicTitle") }}</Label>
+          <div v-if="settingsStore.anthropicApiKey" class="flex items-center gap-2">
+            <Input
+              id="anthropic-api-key"
+              :model-value="isAnthropicApiKeyVisible ? settingsStore.anthropicApiKey : '••••••••••'"
+              readonly
+              class="flex-1 font-mono text-xs"
+            />
+            <Button variant="ghost" size="sm" @click="isAnthropicApiKeyVisible = !isAnthropicApiKeyVisible">
+              {{ isAnthropicApiKeyVisible ? $t('settings.apiKey.hide') : $t('settings.apiKey.show') }}
+            </Button>
+            <Button variant="ghost" size="sm" class="text-destructive" @click="handleDeleteAnthropicApiKey">
+              {{ $t('settings.apiKey.delete') }}
+            </Button>
+          </div>
+          <div v-else class="flex gap-2">
+            <Input
+              id="anthropic-api-key"
+              v-model="anthropicApiKeyInput"
+              type="password"
+              :placeholder="findProviderConfig('anthropic')?.apiKeyPrefix + '...'"
+              class="flex-1 font-mono text-xs"
+            />
+            <Button size="sm" :disabled="!anthropicApiKeyInput.trim()" @click="handleSaveAnthropicApiKey">
+              {{ $t('common.save') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ $t("settings.providerApiKey.anthropicInstruction") }}
+            ·
+            <a :href="findProviderConfig('anthropic')?.consoleUrl" target="_blank" rel="noopener noreferrer" class="underline">{{ $t("settings.providerApiKey.goToAnthropic") }}</a>
+          </p>
+        </div>
+
+        <transition name="feedback-fade">
+          <p
+            v-if="providerFeedback.message.value !== ''"
+            class="text-sm"
+            :class="providerFeedback.type.value === 'success' ? 'text-green-400' : 'text-red-400'"
+          >
+            {{ providerFeedback.message.value }}
+          </p>
+        </transition>
+
+        <template v-if="settingsStore.selectedLlmProviderId === 'groq' || settingsStore.hasLlmApiKey">
+          <Separator />
+
+          <!-- LLM 模型 -->
+          <div class="space-y-2">
+            <Label for="llm-model">{{ $t("settings.model.llmLabel") }}</Label>
+            <Select
+              :model-value="settingsStore.selectedLlmModelId"
+              @update:model-value="handleLlmModelChange($event as LlmModelId)"
+            >
+              <SelectTrigger id="llm-model" class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="model in providerModelList"
+                  :key="model.id"
+                  :value="model.id"
+                >
+                  {{ model.displayName }}
+                  <template #extra>
+                    <Badge variant="secondary" class="ml-2 text-xs">{{ $t(model.badgeKey) }}</Badge>
+                  </template>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-xs text-muted-foreground">{{ llmModelDescription }}</p>
+          </div>
+        </template>
 
         <transition name="feedback-fade">
           <p
@@ -1335,35 +1485,6 @@ onBeforeUnmount(() => {
             :model-value="settingsStore.isSmartDictionaryEnabled"
             @update:model-value="handleToggleSmartDictionary"
           />
-        </div>
-
-        <!-- 字典分析模型 -->
-        <div v-if="settingsStore.isSmartDictionaryEnabled" class="space-y-2">
-          <Label for="vocabulary-analysis-model">{{ $t("settings.smartDictionary.analysisModelLabel") }}</Label>
-          <Select
-            :model-value="settingsStore.selectedVocabularyAnalysisModelId"
-            @update:model-value="handleVocabularyAnalysisModelChange($event as VocabularyAnalysisModelId)"
-          >
-            <SelectTrigger id="vocabulary-analysis-model" class="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="model in VOCABULARY_ANALYSIS_MODEL_LIST"
-                :key="model.id"
-                :value="model.id"
-              >
-                {{ model.displayName }}
-                <template #extra>
-                  <Badge variant="secondary" class="ml-2 text-xs">{{ $t(model.badgeKey) }}</Badge>
-                </template>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-xs text-muted-foreground">
-            {{ $t("settings.smartDictionary.analysisModelDescription") }}
-          </p>
-          <p class="text-xs text-muted-foreground">{{ vocabularyAnalysisModelDescription }}</p>
         </div>
 
         <p class="text-xs text-muted-foreground">

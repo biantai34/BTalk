@@ -48,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key（音声認識 + Groq LLM）",
       "set": "設定済み",
       "notSet": "未設定",
       "goToConsole": "Groq Console へ",
-      "instruction": "Groq Console で API Key を生成し、貼り付けてください。",
+      "instruction": "このキーは音声認識（Whisper）に使用します。LLM プロバイダーが Groq の場合、テキスト整理にも使用されます。",
       "onboarding": "SayIt へようこそ！音声入力を有効にするには、まず Groq API Key を設定してください。",
       "show": "表示",
       "hide": "非表示",
@@ -60,6 +60,22 @@
       "deleted": "API Key を削除しました",
       "confirmDelete": "削除してよろしいですか？",
       "delete": "API Key を削除"
+    },
+    "provider": {
+      "title": "LLM プロバイダー",
+      "description": "テキスト整理と辞書分析に使用する AI サービスを選択します。Groq は無料枠あり、OpenAI と Anthropic は有料です。",
+      "groq": "Groq（無料）",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic",
+      "groqNote": "上記の Groq API Key を使用"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "OpenAI Platform で API Key を取得",
+      "anthropicInstruction": "Anthropic Console で API Key を取得",
+      "goToOpenai": "OpenAI Platform へ",
+      "goToAnthropic": "Anthropic Console へ"
     },
     "model": {
       "title": "モデル選択",
@@ -75,7 +91,8 @@
       "balanced": "バランス · デフォルト",
       "stableCostly": "安定 · 高コスト",
       "fastCheap": "最速 · 最安",
-      "smartestSlow": "最賢 · 低速"
+      "smartestSlow": "最賢 · 低速",
+      "premium": "高品質"
     },
     "prompt": {
       "title": "AI 整理 Prompt",
@@ -153,8 +170,6 @@
       "title": "スマート辞書学習",
       "description": "貼り付け後に修正を自動検出し、AI 分析で新語を学習",
       "privacyNote": "有効にすると、AI 分析のためにカーソル付近のテキストを読み取ります。原文は保存されません",
-      "analysisModelLabel": "辞書分析モデル",
-      "analysisModelDescription": "修正された語彙を辞書に追加すべきかを判断する AI モデル（テキスト整理モデルとは独立）",
       "analysisModelUpdated": "辞書分析モデルを更新しました"
     }
   },
@@ -259,6 +274,9 @@
     "apiKeyEmpty": "API Key は空にできません",
     "promptEmpty": "Prompt は空にできません",
     "apiKeyNotSet": "API Key が未設定です",
+    "openaiApiKeyNotSet": "OpenAI API Key が未設定です",
+    "anthropicApiKeyNotSet": "Anthropic API Key が未設定です",
+    "providerAuthFailed": "API Key の認証に失敗しました（{provider}）",
     "enhancementTimeout": "AI 整理がタイムアウトしました",
     "apiKeyMissing": "API Key を設定してください",
     "mic": {
@@ -345,6 +363,7 @@
       "item5": "マイク選択の改善：デフォルトデバイス名と音量プレビューバーを表示",
       "item6": "トグルモードの貼り付け修正：特定状況でテキストが二重に貼り付けられる問題を修正",
       "item7": "ご利用について：現在は短い口述の高速文字起こし向けに設計されています。長時間の会議録音には未対応ですが、今後対応予定です",
+      "item8": "有料 LLM 対応：Groq の無料モデルでは精度が不十分なため、OpenAI と Anthropic を追加しました。API Key をお持ちの方は設定から利用できます（LLM サービスへの課金が必要です）。1,500 円ほどチャージすると体感がかなり変わります",
       "dismiss": "了解"
     }
   }

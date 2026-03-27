@@ -84,12 +84,16 @@ vi.mock("../../src/lib/keycodeMap", () => ({
 
 vi.mock("../../src/lib/modelRegistry", () => ({
   DEFAULT_LLM_MODEL_ID: "test-llm",
-  DEFAULT_VOCABULARY_ANALYSIS_MODEL_ID: "test-vocab",
+  DEFAULT_LLM_PROVIDER_ID: "groq",
   DEFAULT_WHISPER_MODEL_ID: "test-whisper",
   getEffectiveLlmModelId: (id: string | null) => id ?? "test-llm",
-  getEffectiveVocabularyAnalysisModelId: (id: string | null) =>
-    id ?? "test-vocab",
   getEffectiveWhisperModelId: (id: string | null) => id ?? "test-whisper",
+  getModelListByProvider: () => [],
+  getDefaultModelIdForProvider: () => "test-llm",
+}));
+
+vi.mock("../../src/lib/llmProvider", () => ({
+  findProviderConfig: () => undefined,
 }));
 
 describe("useSettingsStore — prompt mode 遷移", () => {

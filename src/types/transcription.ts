@@ -42,9 +42,9 @@ export interface ChatUsageData {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
-  promptTimeMs: number;
-  completionTimeMs: number;
-  totalTimeMs: number;
+  promptTimeMs?: number;
+  completionTimeMs?: number;
+  totalTimeMs?: number;
 }
 
 export interface EnhanceResult {

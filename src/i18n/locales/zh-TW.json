@@ -48,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key（語音轉錄 + Groq LLM）",
       "set": "已設定",
       "notSet": "未設定",
       "goToConsole": "前往 Groq Console",
-      "instruction": "請在 Groq Console 產生 API Key 後貼上。",
+      "instruction": "此 Key 用於語音轉錄（Whisper）。若 LLM Provider 選擇 Groq，也會用於文字整理。",
       "onboarding": "歡迎使用 SayIt！請先設定 Groq API Key 以啟用語音輸入功能。",
       "show": "顯示",
       "hide": "隱藏",
@@ -60,6 +60,22 @@
       "deleted": "API Key 已刪除",
       "confirmDelete": "確認刪除？",
       "delete": "刪除 API Key"
+    },
+    "provider": {
+      "title": "LLM 模型服務",
+      "description": "選擇文字整理和字典分析使用的 AI 服務。Groq 提供免費額度，OpenAI 和 Anthropic 為付費服務。",
+      "groq": "Groq（免費）",
+      "openai": "OpenAI",
+      "anthropic": "Anthropic",
+      "groqNote": "使用上方 Groq API Key"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "前往 OpenAI Platform 取得 API Key",
+      "anthropicInstruction": "前往 Anthropic Console 取得 API Key",
+      "goToOpenai": "前往 OpenAI Platform",
+      "goToAnthropic": "前往 Anthropic Console"
     },
     "model": {
       "title": "模型選擇",
@@ -75,7 +91,8 @@
       "balanced": "平衡 · 預設",
       "stableCostly": "穩定可靠 · 成本高",
       "fastCheap": "最快 · 最便宜",
-      "smartestSlow": "最聰明 · 較慢"
+      "smartestSlow": "最聰明 · 較慢",
+      "premium": "高品質"
     },
     "prompt": {
       "title": "AI 整理 Prompt",
@@ -153,8 +170,6 @@
       "title": "智慧字典學習",
       "description": "轉錄貼上後自動偵測修正，透過 AI 分析學習新詞彙",
       "privacyNote": "啟用後，系統會讀取游標附近的文字用於 AI 分析，不儲存原文",
-      "analysisModelLabel": "字典分析模型",
-      "analysisModelDescription": "用於判斷修正詞彙是否應加入字典的 AI 模型（獨立於文字整理模型）",
       "analysisModelUpdated": "字典分析模型已更新"
     }
   },
@@ -259,6 +274,9 @@
     "apiKeyEmpty": "API Key 不可為空白",
     "promptEmpty": "Prompt 不可為空白",
     "apiKeyNotSet": "API Key 未設定",
+    "openaiApiKeyNotSet": "OpenAI API Key 未設定",
+    "anthropicApiKeyNotSet": "Anthropic API Key 未設定",
+    "providerAuthFailed": "API Key 驗證失敗（{provider}）",
     "enhancementTimeout": "AI 整理逾時",
     "apiKeyMissing": "請設定 API Key",
     "mic": {
@@ -345,6 +363,7 @@
       "item5": "麥克風選擇器改善：顯示預設裝置名稱，還有音量預覽條",
       "item6": "Toggle 模式不再重複貼上：修復了特定情境下文字被貼兩次的問題",
       "item7": "錄音定位：目前專為短口語快速轉錄設計，暫不適合長時間會議錄音。未來會針對長錄音場景持續優化",
+      "item8": "付費 LLM 支援：受不了 Groq 免費模型太笨了，所以加上 OpenAI 和 Anthropic。如果你有 API Key 可以自行設定，但要付費給 LLM 服務商。推薦儲值個 300 元，體感會好很多",
       "dismiss": "了解"
     }
   }

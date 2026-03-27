@@ -609,7 +609,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
                     fieldText,
                     apiKey,
                     {
-                      modelId: settingsStore.selectedVocabularyAnalysisModelId,
+                      modelId: settingsStore.selectedLlmModelId,
                     },
                   );
 
@@ -656,13 +656,13 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
                         id: crypto.randomUUID(),
                         transcriptionId,
                         apiType: "vocabulary_analysis",
-                        model: settingsStore.selectedVocabularyAnalysisModelId,
+                        model: settingsStore.selectedLlmModelId,
                         promptTokens: analysisResult.usage.promptTokens,
                         completionTokens: analysisResult.usage.completionTokens,
                         totalTokens: analysisResult.usage.totalTokens,
-                        promptTimeMs: analysisResult.usage.promptTimeMs,
-                        completionTimeMs: analysisResult.usage.completionTimeMs,
-                        totalTimeMs: analysisResult.usage.totalTimeMs,
+                        promptTimeMs: analysisResult.usage.promptTimeMs ?? null,
+                        completionTimeMs: analysisResult.usage.completionTimeMs ?? null,
+                        totalTimeMs: analysisResult.usage.totalTimeMs ?? null,
                         audioDurationMs: null,
                         estimatedCostCeiling: calculateChatCostCeiling(
                           analysisResult.usage.totalTokens,
@@ -760,11 +760,11 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       const finalText = params.record.processedText ?? params.record.rawText;
       updateVocabularyWeightsAfterPaste(finalText);
 
-      // 修正偵測（fire-and-forget，需 API key）
+      // 修正偵測（fire-and-forget，需 LLM API key）
       const settingsStore = useSettingsStore();
-      const apiKey = settingsStore.getApiKey();
-      if (apiKey) {
-        startCorrectionDetectionFlow(params.text, params.record.id, apiKey);
+      const llmApiKey = settingsStore.getLlmApiKey();
+      if (llmApiKey) {
+        startCorrectionDetectionFlow(params.text, params.record.id, llmApiKey);
       }
     } catch (pasteError) {
       isRecording.value = false;
@@ -821,9 +821,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         promptTokens: chatUsage.promptTokens,
         completionTokens: chatUsage.completionTokens,
         totalTokens: chatUsage.totalTokens,
-        promptTimeMs: chatUsage.promptTimeMs,
-        completionTimeMs: chatUsage.completionTimeMs,
-        totalTimeMs: chatUsage.totalTimeMs,
+        promptTimeMs: chatUsage.promptTimeMs ?? null,
+        completionTimeMs: chatUsage.completionTimeMs ?? null,
+        totalTimeMs: chatUsage.totalTimeMs ?? null,
         audioDurationMs: null,
         estimatedCostCeiling: calculateChatCostCeiling(
           chatUsage.totalTokens,
@@ -1206,6 +1206,12 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         const enhancementStartTime = performance.now();
 
         try {
+          await settingsStore.refreshLlmApiKey();
+          const llmApiKey = settingsStore.getLlmApiKey();
+          if (!llmApiKey) {
+            throw new Error(t("errors.apiKeyMissing"));
+          }
+
           const enhancementTermList =
             await vocabularyStore.getTopTermListByWeight(50);
           const enhanceOptions = {
@@ -1218,7 +1224,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
           let enhanceResult = await enhanceText(
             result.rawText,
-            apiKey,
+            llmApiKey,
             enhanceOptions,
           );
           if (isAborted.value) return;
@@ -1238,7 +1244,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
             );
             enhanceResult = await enhanceText(
               result.rawText,
-              apiKey,
+              llmApiKey,
               enhanceOptions,
             );
             if (isAborted.value) return;
@@ -1467,9 +1473,15 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         const enhancementStartTime = performance.now();
 
         try {
+          await settingsStore.refreshLlmApiKey();
+          const llmApiKey = settingsStore.getLlmApiKey();
+          if (!llmApiKey) {
+            throw new Error(t("errors.apiKeyMissing"));
+          }
+
           const enhancementTermList =
             await vocabularyStore.getTopTermListByWeight(50);
-          const enhanceResult = await enhanceText(result.rawText, apiKey, {
+          const enhanceResult = await enhanceText(result.rawText, llmApiKey, {
             systemPrompt: settingsStore.getAiPrompt(),
             vocabularyTermList:
               enhancementTermList.length > 0 ? enhancementTermList : undefined,
