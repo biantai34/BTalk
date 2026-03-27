@@ -125,6 +125,8 @@
       "description": "选择录音使用的麦克风",
       "deviceLabel": "麦克风",
       "systemDefault": "系统默认",
+      "systemDefaultWithDevice": "系统默认（{device}）",
+      "volumePreview": "麦克风音量预览",
       "refresh": "刷新",
       "refreshed": "已检测到 {count} 个设备",
       "updated": "输入设备已更新"

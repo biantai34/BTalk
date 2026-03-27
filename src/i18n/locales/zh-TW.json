@@ -125,6 +125,8 @@
       "description": "選擇錄音使用的麥克風",
       "deviceLabel": "麥克風",
       "systemDefault": "系統預設",
+      "systemDefaultWithDevice": "系統預設（{device}）",
+      "volumePreview": "麥克風音量預覽",
       "refresh": "重新整理",
       "refreshed": "已偵測到 {count} 個裝置",
       "updated": "輸入裝置已更新"

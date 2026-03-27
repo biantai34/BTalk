@@ -125,6 +125,8 @@
       "description": "録音に使用するマイクを選択",
       "deviceLabel": "マイク",
       "systemDefault": "システムデフォルト",
+      "systemDefaultWithDevice": "システムデフォルト（{device}）",
+      "volumePreview": "マイク音量プレビュー",
       "refresh": "更新",
       "refreshed": "{count} 個のデバイスを検出しました",
       "updated": "入力デバイスを更新しました"

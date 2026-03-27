@@ -125,6 +125,8 @@
       "description": "녹음에 사용할 마이크를 선택하세요",
       "deviceLabel": "마이크",
       "systemDefault": "시스템 기본값",
+      "systemDefaultWithDevice": "시스템 기본값 ({device})",
+      "volumePreview": "마이크 볼륨 미리보기",
       "refresh": "새로고침",
       "refreshed": "{count}개의 장치가 감지되었습니다",
       "updated": "입력 장치가 업데이트되었습니다"

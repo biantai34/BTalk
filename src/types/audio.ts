@@ -6,6 +6,10 @@ export interface WaveformPayload {
   levels: number[];
 }
 
+export interface AudioPreviewLevelPayload {
+  level: number;
+}
+
 export interface StopRecordingResult {
   recordingDurationMs: number;
   peakEnergyLevel: number;

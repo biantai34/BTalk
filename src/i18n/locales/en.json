@@ -125,6 +125,8 @@
       "description": "Select the microphone for recording",
       "deviceLabel": "Microphone",
       "systemDefault": "System Default",
+      "systemDefaultWithDevice": "System Default ({device})",
+      "volumePreview": "Microphone volume preview",
       "refresh": "Refresh",
       "refreshed": "{count} device(s) detected",
       "updated": "Input device updated"

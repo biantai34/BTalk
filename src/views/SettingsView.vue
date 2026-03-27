@@ -72,11 +72,13 @@ import {
   Github,
   Globe,
   Instagram,
+  Mic,
   RefreshCw,
   Trash2,
 } from "lucide-vue-next";
 import { invoke } from "@tauri-apps/api/core";
 import type { AudioInputDeviceInfo } from "../types/audio";
+import { useAudioPreview } from "../composables/useAudioPreview";
 
 const settingsStore = useSettingsStore();
 const historyStore = useHistoryStore();
@@ -637,13 +639,18 @@ async function handleToggleAutoStart() {
 
 // ── 輸入裝置 ──────────────────────────────────────────────
 const audioInputDeviceList = ref<AudioInputDeviceInfo[]>([]);
+const defaultInputDeviceName = ref<string | null>(null);
 const isRefreshingDeviceList = ref(false);
 const audioInputFeedback = useFeedbackMessage();
+const { previewLevel, isPreviewActive, startPreview, stopPreview } =
+  useAudioPreview();
 
 async function loadAudioInputDeviceList() {
   try {
     audioInputDeviceList.value =
       await invoke<AudioInputDeviceInfo[]>("list_audio_input_devices");
+    defaultInputDeviceName.value =
+      await invoke<string | null>("get_default_input_device_name");
   } catch (err) {
     console.error(
       "[SettingsView] Failed to list audio input devices:",
@@ -662,6 +669,7 @@ async function handleRefreshAudioInputDeviceList() {
         count: audioInputDeviceList.value.length,
       }),
     );
+    void startPreview(settingsStore.selectedAudioInputDeviceName);
   } catch (err) {
     audioInputFeedback.show("error", extractErrorMessage(err));
   } finally {
@@ -673,13 +681,17 @@ async function handleAudioInputDeviceChange(deviceName: string) {
   try {
     await settingsStore.saveAudioInputDevice(deviceName);
     audioInputFeedback.show("success", t("settings.audioInput.updated"));
+    void startPreview(deviceName);
   } catch (err) {
     audioInputFeedback.show("error", extractErrorMessage(err));
   }
 }
 
 onMounted(async () => {
-  void loadAudioInputDeviceList();
+  // F5 fix: 先載入裝置列表，完成後再啟動預覽（避免 cpal 並行 host 查詢）
+  void loadAudioInputDeviceList().then(() => {
+    void startPreview(settingsStore.selectedAudioInputDeviceName);
+  });
   selectedPromptMode.value = settingsStore.promptMode;
   promptInput.value = settingsStore.getAiPrompt();
   isPresetDirty.value = false;
@@ -702,6 +714,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  void stopPreview();
   stopKeyRecording();
   hotkeyFeedback.clearTimer();
   apiKeyFeedback.clearTimer();
@@ -1324,7 +1337,13 @@ onBeforeUnmount(() => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_default">
-                  {{ $t("settings.audioInput.systemDefault") }}
+                  {{
+                    defaultInputDeviceName
+                      ? $t("settings.audioInput.systemDefaultWithDevice", {
+                          device: defaultInputDeviceName,
+                        })
+                      : $t("settings.audioInput.systemDefault")
+                  }}
                 </SelectItem>
                 <SelectItem
                   v-for="device in audioInputDeviceList"
@@ -1343,6 +1362,23 @@ onBeforeUnmount(() => {
             >
               <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isRefreshingDeviceList }" />
             </Button>
+          </div>
+        </div>
+        <div
+          v-if="isPreviewActive"
+          role="meter"
+          :aria-valuenow="Math.round(previewLevel * 100)"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-label="$t('settings.audioInput.volumePreview')"
+          class="flex items-center gap-2 h-5"
+        >
+          <Mic class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <div class="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              class="h-full rounded-full bg-primary transition-[width] duration-75"
+              :style="{ width: `${Math.round(previewLevel * 100)}%` }"
+            />
           </div>
         </div>
         <transition name="feedback-fade">
