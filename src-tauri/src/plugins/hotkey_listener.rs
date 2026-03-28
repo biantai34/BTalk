@@ -730,15 +730,9 @@ fn start_event_tap<R: Runtime>(app_handle: AppHandle<R>, state: HotkeyListenerSt
 
                         // Single-key triggers (existing logic)
                         if trigger == TriggerKey::Fn {
-                            let was_pressed = state.is_pressed.load(Ordering::SeqCst);
-                            let fn_flag = flags.contains(CGEventFlags::CGEventFlagSecondaryFn);
-
                             if keycode == macos_keycodes::FN {
-                                handle_key_event(&app_handle, !was_pressed, &state, &mode);
-                            } else if fn_flag && !was_pressed {
-                                handle_key_event(&app_handle, true, &state, &mode);
-                            } else if !fn_flag && was_pressed {
-                                handle_key_event(&app_handle, false, &state, &mode);
+                                let fn_flag = flags.contains(CGEventFlags::CGEventFlagSecondaryFn);
+                                handle_key_event(&app_handle, fn_flag, &state, &mode);
                             }
                         } else if let TriggerKey::Custom { keycode: custom_kc } = &trigger {
                             if keycode == *custom_kc {

@@ -86,7 +86,7 @@ review_findings_addressed: 28
 
 2. **Settings 持久化鏈路**：UI → `useSettingsStore.saveXxx()` → `tauri-plugin-store` → `invoke("update_hotkey_config")` 同步 Rust → `emitEvent(SETTINGS_UPDATED)` 廣播。
 
-3. **CGEventTap callback**：單一閉包處理 FlagsChanged/KeyDown/KeyUp。修飾鍵用 `CGEventFlags` 偵測，非修飾鍵用 keycode toggle。Fn 鍵有雙重策略。
+3. **CGEventTap callback**：單一閉包處理 FlagsChanged/KeyDown/KeyUp。修飾鍵用 `CGEventFlags` ��測，非修飾鍵用 keycode match。Preset Fn 只回應 keycode 63 的 FlagsChanged 事件，用 `CGEventFlagSecondaryFn` flag-based 偵測（避免 Globe 鍵的額外系統事件干擾���。
 
 4. **Architecture.md 組合鍵設計**（第 89-93 行）：`{ modifiers: Vec<Modifier>, keycode }`，macOS 用 CGEventFlags，Windows 用 GetKeyState。向後相容：舊 `{ keycode }` = `{ modifiers: [], keycode }`。
 
@@ -133,7 +133,7 @@ review_findings_addressed: 28
 - **HUD badge 顯示所有模式**：精簡、積極、自訂都顯示對應標籤
 - **單一 Mutex `HotkeySharedState`**：合併 active_modifiers + double_tap_state + recording_state，與現有 trigger_key Mutex 合併，避免多鎖 deadlock
 - **Rust-driven 錄鍵**：錄製快捷鍵完全由 Rust CGEventTap/Windows hook 處理（`start_hotkey_recording` / `cancel_hotkey_recording` commands + `hotkey:recording-captured` / `hotkey:recording-rejected` events），不依賴 DOM `KeyboardEvent`。解決 Fn 鍵不產生 DOM 事件 + 修飾鍵單獨按被阻擋的問題
-- **`ModifierFlag::Fn`**：macOS 用 `CGEventFlagSecondaryFn` 偵測。Fn 在 recording mode 用 toggle-based（keycode 63）偵測 press/release。支援 Fn 單鍵（Custom）和 Fn+J 組合鍵（Combo）。Windows 無 Fn（firmware 層）
+- **`ModifierFlag::Fn`**：macOS 用 `CGEventFlagSecondaryFn` 偵測。Preset Fn trigger 偵測只回應 keycode 63 的 FlagsChanged，用 flag-based 判斷 press/release（不回應非 keycode-63 的 FlagsChanged，避免 Globe 鍵系統事件誤觸 release）。Recording mode 仍用 toggle-based（keycode 63 第一次 = 累積，第二次 = 捕獲）。支援 Fn 單鍵（Custom）和 Fn+J 組合鍵（Combo）。Windows 無 Fn（firmware 層）
 - **組合鍵 exact modifier match**：`matches_combo_trigger` 檢查 `modifiers.len() == active_mods.len()`，⌘+J 不會被 ⌘+⇧+J 觸發
 
 ## Implementation Plan
@@ -353,7 +353,7 @@ review_findings_addressed: 28
 - 單一 Mutex lock 時間需最短化（callback 內只讀 config，不做 IO）
 - Double-tap 競態：`waitForDoubleTapResolution` Promise 必須在 `invoke("stop_recording")` 之前 await。ESC abort 時必須 resolve(false) 避免 suspend
 - Toggle 長按：spawn thread sleep 1s 後檢查 `is_pressed`，使用 `toggle_long_press_fired` flag 防止 release 時重複 toggle
-- Rust-driven 錄鍵：recording mode 時 CGEventTap/hook callback 跳過所有 trigger 邏輯。Fn 鍵用 toggle-based（keycode 63）偵測
+- Rust-driven 錄鍵：recording mode 時 CGEventTap/hook callback 跳過所有 trigger ��輯。Fn 鍵在 recording mode 用 toggle-based（keycode 63）偵測；在 trigger mode 用 flag-based（`CGEventFlagSecondaryFn`）偵測
 - `getTriggerKeyDisplayName` 必須處理 Combo variant，否則 runtime crash
 - mode-switch HUD 生命週期：store 設 `modeSwitchLabel` + `showHud()`，3s 後清 label + `transitionTo("idle")` 觸發 collapse（與 success 流程一致）
 
