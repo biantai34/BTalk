@@ -67,7 +67,7 @@ interface NotchShapeParams {
 }
 
 const DEFAULT_NOTCH_SHAPE: NotchShapeParams = {
-  width: 350,
+  width: 420,
   height: 42,
   topRadius: 14,
   bottomRadius: 22,
@@ -75,7 +75,7 @@ const DEFAULT_NOTCH_SHAPE: NotchShapeParams = {
 
 const NOTCH_SHAPE_OVERRIDES: Partial<Record<VisualMode, NotchShapeParams>> = {
   collapsing: { width: 200, height: 32, topRadius: 10, bottomRadius: 16 },
-  "mode-switch": { width: 200, height: 36, topRadius: 12, bottomRadius: 18 },
+  "mode-switch": { width: 350, height: 36, topRadius: 12, bottomRadius: 18 },
 };
 
 function buildNotchPath(p: NotchShapeParams): string {
@@ -248,8 +248,18 @@ function clearModeSwitchTimer() {
 watch(
   () => props.modeSwitchLabel,
   (label) => {
-    if (!label) return;
-    // Label set → show mode-switch visual (collapse handled by status watcher when idle arrives)
+    if (!label) {
+      // Label cleared → trigger collapsing animation
+      if (visualMode.value === "mode-switch") {
+        visualMode.value = "collapsing";
+        collapsingTimer = setTimeout(() => {
+          visualMode.value = "hidden";
+          processNextLearnedNotification();
+        }, COLLAPSE_ANIMATION_DURATION_MS);
+      }
+      return;
+    }
+    // Label set → show mode-switch visual
     clearModeSwitchTimer();
     clearCollapsingTimer();
     visualMode.value = "mode-switch";

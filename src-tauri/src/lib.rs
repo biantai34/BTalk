@@ -111,8 +111,8 @@ fn update_hotkey_config(
     Ok(())
 }
 
-/// HUD 視窗邏輯寬度（pixels），對應前端 CSS 400px
-const HUD_WINDOW_WIDTH_LOGICAL: f64 = 400.0;
+/// HUD 視窗邏輯寬度（pixels），對應前端 CSS 470px
+const HUD_WINDOW_WIDTH_LOGICAL: f64 = 470.0;
 
 /// macOS: 取得滑鼠游標座標（logical points，原點在主螢幕左上角）
 #[cfg(target_os = "macos")]
