@@ -112,6 +112,9 @@ const DOM_CODE_TO_MAC_KEYCODE: Record<string, number> = {
   ArrowRight: 124,
   Insert: 114,
 
+  // Fn (Globe) key
+  Fn: 63,
+
   // Modifiers
   ShiftLeft: 56,
   ShiftRight: 60,
@@ -378,6 +381,9 @@ const KEY_DISPLAY_NAMES: Record<string, string> = {
   ArrowRight: "→",
   Insert: "Insert",
 
+  // Fn (Globe) key
+  Fn: "Fn",
+
   // Modifiers
   ShiftLeft: "Left Shift",
   ShiftRight: "Right Shift",
@@ -483,6 +489,54 @@ const MAC_KEYCODE_COLLISION_KEYS: Set<string> = new Set([
   "ScrollLock", // keycode 107 = F14
   "Pause", // keycode 113 = F15
 ]);
+
+// ─── Modifier display symbols ───────────────────────────────
+
+import type { ComboTriggerKey, ModifierFlag } from "../types/settings";
+
+const MODIFIER_DISPLAY_SYMBOLS: Record<ModifierFlag, string> = {
+  command: "⌘",
+  control: "⌃",
+  option: "⌥",
+  shift: "⇧",
+  fn: "Fn",
+};
+
+export function getComboTriggerKeyDisplayName(
+  combo: ComboTriggerKey,
+): string {
+  const modSymbols = combo.combo.modifiers
+    .map((m) => MODIFIER_DISPLAY_SYMBOLS[m])
+    .join("+");
+  // Look up the primary key display name by finding its DOM code from the keycode
+  const primaryKeyDisplayName = getKeyDisplayNameByKeycode(combo.combo.keycode);
+  return modSymbols ? `${modSymbols}+${primaryKeyDisplayName}` : primaryKeyDisplayName;
+}
+
+/** Reverse lookup: find DOM code from platform keycode */
+export function getDomCodeByKeycode(
+  keycode: number,
+  userAgent?: string,
+): string | null {
+  const map = isMacPlatform(userAgent)
+    ? DOM_CODE_TO_MAC_KEYCODE
+    : DOM_CODE_TO_WINDOWS_VK_CODE;
+  for (const [code, kc] of Object.entries(map)) {
+    if (kc === keycode) return code;
+  }
+  return null;
+}
+
+/** Reverse lookup: find display name from platform keycode */
+export function getKeyDisplayNameByKeycode(keycode: number): string {
+  const map = isMacPlatform() ? DOM_CODE_TO_MAC_KEYCODE : DOM_CODE_TO_WINDOWS_VK_CODE;
+  for (const [code, kc] of Object.entries(map)) {
+    if (kc === keycode) {
+      return KEY_DISPLAY_NAMES[code] ?? code;
+    }
+  }
+  return `Key(${keycode})`;
+}
 
 export function getEscapeReservedMessage(): string {
   return i18n.global.t("errors.hotkey.escReserved");

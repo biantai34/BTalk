@@ -1,16 +1,25 @@
+// ── LLM Provider ──────────────────────────────────────────
+
+export type LlmProviderId = "groq" | "openai" | "anthropic" | "gemini";
+
+export const DEFAULT_LLM_PROVIDER_ID: LlmProviderId = "groq";
+
 // ── LLM 模型（文字整理用）────────────────────────────────
 
 export type LlmModelId =
   | "llama-3.3-70b-versatile"
   | "meta-llama/llama-4-scout-17b-16e-instruct"
   | "qwen/qwen3-32b"
-  | "moonshotai/kimi-k2-instruct";
+  | "gpt-5.4-mini"
+  | "gpt-5.4-nano"
+  | "claude-haiku-4-5-20251001"
+  | "claude-3-5-haiku-20241022"
+  | "gemini-2.5-flash"
+  | "gemini-2.5-flash-lite";
 
-// ── 字典分析模型 ─────────────────────────────────────────
+// ── Whisper 模型（語音轉錄用）─────────────────────────────
 
-export type VocabularyAnalysisModelId =
-  | "llama-3.3-70b-versatile"
-  | "moonshotai/kimi-k2-instruct";
+export type WhisperModelId = "whisper-large-v3" | "whisper-large-v3-turbo";
 
 interface BaseModelConfig {
   displayName: string;
@@ -25,15 +34,8 @@ interface BaseModelConfig {
 
 export interface LlmModelConfig extends BaseModelConfig {
   id: LlmModelId;
+  providerId: LlmProviderId;
 }
-
-export interface VocabularyAnalysisModelConfig extends BaseModelConfig {
-  id: VocabularyAnalysisModelId;
-}
-
-// ── Whisper 模型（語音轉錄用）─────────────────────────────
-
-export type WhisperModelId = "whisper-large-v3" | "whisper-large-v3-turbo";
 
 export interface WhisperModelConfig {
   id: WhisperModelId;
@@ -46,40 +48,31 @@ export interface WhisperModelConfig {
 
 // ── 預設值 ────────────────────────────────────────────────
 
-export const DEFAULT_LLM_MODEL_ID: LlmModelId = "moonshotai/kimi-k2-instruct";
-export const DEFAULT_VOCABULARY_ANALYSIS_MODEL_ID: VocabularyAnalysisModelId =
-  "llama-3.3-70b-versatile";
+export const DEFAULT_LLM_MODEL_ID: LlmModelId = "llama-3.3-70b-versatile";
 export const DEFAULT_WHISPER_MODEL_ID: WhisperModelId = "whisper-large-v3";
 
 // ── 已下架模型 ID 映射（舊 → 新，用於自動遷移）──────────
 
 export const DECOMMISSIONED_MODEL_MAP: Record<string, LlmModelId> = {
-  "qwen-qwq-32b": "moonshotai/kimi-k2-instruct",
-  "gpt-oss-120b": "moonshotai/kimi-k2-instruct",
-  "openai/gpt-oss-120b": "moonshotai/kimi-k2-instruct",
-  "openai/gpt-oss-20b": "moonshotai/kimi-k2-instruct",
+  "moonshotai/kimi-k2-instruct": "llama-3.3-70b-versatile",
+  "qwen-qwq-32b": "llama-3.3-70b-versatile",
+  "gpt-oss-120b": "llama-3.3-70b-versatile",
+  "openai/gpt-oss-120b": "llama-3.3-70b-versatile",
+  "openai/gpt-oss-20b": "llama-3.3-70b-versatile",
   "llama-3.1-8b-instant": "qwen/qwen3-32b",
-  "llama-4-scout-17b-16e-instruct": "meta-llama/llama-4-scout-17b-16e-instruct",
+  "llama-4-scout-17b-16e-instruct":
+    "meta-llama/llama-4-scout-17b-16e-instruct",
   "llama-4-maverick-17b-128e-instruct": "qwen/qwen3-32b",
   "meta-llama/llama-4-maverick-17b-128e-instruct": "qwen/qwen3-32b",
 };
 
-// ── 模型清單（Groq 2026-03 價格）─────────────────────────
+// ── 模型清單 ──────────────────────────────────────────────
 
 export const LLM_MODEL_LIST: LlmModelConfig[] = [
-  {
-    id: "qwen/qwen3-32b",
-    displayName: "Qwen3 32B",
-    badgeKey: "settings.modelBadge.balanced",
-    speedTps: 400,
-    inputCostPerMillion: 0.29,
-    outputCostPerMillion: 0.59,
-    freeQuotaRpd: 1_000,
-    freeQuotaTpd: 500_000,
-    isDefault: true,
-  },
+  // ── Groq（免費）──
   {
     id: "llama-3.3-70b-versatile",
+    providerId: "groq",
     displayName: "Llama 3.3 70B Versatile",
     badgeKey: "settings.modelBadge.stableCostly",
     speedTps: 280,
@@ -87,10 +80,23 @@ export const LLM_MODEL_LIST: LlmModelConfig[] = [
     outputCostPerMillion: 0.79,
     freeQuotaRpd: 1_000,
     freeQuotaTpd: 100_000,
+    isDefault: true,
+  },
+  {
+    id: "qwen/qwen3-32b",
+    providerId: "groq",
+    displayName: "Qwen3 32B",
+    badgeKey: "settings.modelBadge.balanced",
+    speedTps: 400,
+    inputCostPerMillion: 0.29,
+    outputCostPerMillion: 0.59,
+    freeQuotaRpd: 1_000,
+    freeQuotaTpd: 500_000,
     isDefault: false,
   },
   {
     id: "meta-llama/llama-4-scout-17b-16e-instruct",
+    providerId: "groq",
     displayName: "Llama 4 Scout 17B",
     badgeKey: "settings.modelBadge.fastCheap",
     speedTps: 750,
@@ -100,42 +106,79 @@ export const LLM_MODEL_LIST: LlmModelConfig[] = [
     freeQuotaTpd: 500_000,
     isDefault: false,
   },
+  // ── Google Gemini（免費額度）──
   {
-    id: "moonshotai/kimi-k2-instruct",
-    displayName: "Kimi K2 Instruct",
-    badgeKey: "settings.modelBadge.smartestSlow",
-    speedTps: 200,
-    inputCostPerMillion: 0.2,
-    outputCostPerMillion: 0.4,
-    freeQuotaRpd: 1_000,
-    freeQuotaTpd: 100_000,
-    isDefault: false,
-  },
-];
-
-// ── 字典分析模型清單（指令遵從 + JSON 穩定性優先）──────
-
-export const VOCABULARY_ANALYSIS_MODEL_LIST: VocabularyAnalysisModelConfig[] = [
-  {
-    id: "llama-3.3-70b-versatile",
-    displayName: "Llama 3.3 70B Versatile",
+    id: "gemini-2.5-flash",
+    providerId: "gemini",
+    displayName: "Gemini 2.5 Flash",
     badgeKey: "settings.modelBadge.balanced",
-    speedTps: 280,
-    inputCostPerMillion: 0.59,
-    outputCostPerMillion: 0.79,
-    freeQuotaRpd: 1_000,
-    freeQuotaTpd: 100_000,
+    speedTps: 0,
+    inputCostPerMillion: 0.15,
+    outputCostPerMillion: 0.6,
+    freeQuotaRpd: 250,
+    freeQuotaTpd: 0,
     isDefault: true,
   },
   {
-    id: "moonshotai/kimi-k2-instruct",
-    displayName: "Kimi K2 Instruct",
-    badgeKey: "settings.modelBadge.smartestSlow",
-    speedTps: 200,
-    inputCostPerMillion: 0.2,
-    outputCostPerMillion: 0.4,
+    id: "gemini-2.5-flash-lite",
+    providerId: "gemini",
+    displayName: "Gemini 2.5 Flash-Lite",
+    badgeKey: "settings.modelBadge.fastCheap",
+    speedTps: 0,
+    inputCostPerMillion: 0.075,
+    outputCostPerMillion: 0.3,
     freeQuotaRpd: 1_000,
-    freeQuotaTpd: 100_000,
+    freeQuotaTpd: 0,
+    isDefault: false,
+  },
+  // ── OpenAI（付費）──
+  {
+    id: "gpt-5.4-mini",
+    providerId: "openai",
+    displayName: "GPT-5.4 Mini",
+    badgeKey: "settings.modelBadge.premium",
+    speedTps: 0,
+    inputCostPerMillion: 0.75,
+    outputCostPerMillion: 4.5,
+    freeQuotaRpd: 0,
+    freeQuotaTpd: 0,
+    isDefault: true,
+  },
+  {
+    id: "gpt-5.4-nano",
+    providerId: "openai",
+    displayName: "GPT-5.4 Nano",
+    badgeKey: "settings.modelBadge.fastCheap",
+    speedTps: 0,
+    inputCostPerMillion: 0.2,
+    outputCostPerMillion: 1.25,
+    freeQuotaRpd: 0,
+    freeQuotaTpd: 0,
+    isDefault: false,
+  },
+  // ── Anthropic（付費）──
+  {
+    id: "claude-haiku-4-5-20251001",
+    providerId: "anthropic",
+    displayName: "Claude Haiku 4.5",
+    badgeKey: "settings.modelBadge.premium",
+    speedTps: 0,
+    inputCostPerMillion: 1.0,
+    outputCostPerMillion: 5.0,
+    freeQuotaRpd: 0,
+    freeQuotaTpd: 0,
+    isDefault: true,
+  },
+  {
+    id: "claude-3-5-haiku-20241022",
+    providerId: "anthropic",
+    displayName: "Claude 3.5 Haiku",
+    badgeKey: "settings.modelBadge.fastCheap",
+    speedTps: 0,
+    inputCostPerMillion: 0.8,
+    outputCostPerMillion: 4.0,
+    freeQuotaRpd: 0,
+    freeQuotaTpd: 0,
     isDefault: false,
   },
 ];
@@ -165,16 +208,24 @@ export function findLlmModelConfig(id: string): LlmModelConfig | undefined {
   return LLM_MODEL_LIST.find((m) => m.id === id);
 }
 
-export function findVocabularyAnalysisModelConfig(
-  id: string,
-): VocabularyAnalysisModelConfig | undefined {
-  return VOCABULARY_ANALYSIS_MODEL_LIST.find((m) => m.id === id);
-}
-
 export function findWhisperModelConfig(
   id: string,
 ): WhisperModelConfig | undefined {
   return WHISPER_MODEL_LIST.find((m) => m.id === id);
+}
+
+export function getModelListByProvider(
+  providerId: LlmProviderId,
+): LlmModelConfig[] {
+  return LLM_MODEL_LIST.filter((m) => m.providerId === providerId);
+}
+
+export function getDefaultModelIdForProvider(
+  providerId: LlmProviderId,
+): LlmModelId {
+  const providerModelList = getModelListByProvider(providerId);
+  const defaultModel = providerModelList.find((m) => m.isDefault);
+  return defaultModel?.id ?? providerModelList[0]?.id ?? DEFAULT_LLM_MODEL_ID;
 }
 
 /**
@@ -189,17 +240,6 @@ export function getEffectiveLlmModelId(savedId: string | null): LlmModelId {
   }
 
   return DEFAULT_LLM_MODEL_ID;
-}
-
-/**
- * 安全取得字典分析模型 ID：若 savedId 不在 registry 則 fallback 到預設。
- */
-export function getEffectiveVocabularyAnalysisModelId(
-  savedId: string | null,
-): VocabularyAnalysisModelId {
-  if (savedId && findVocabularyAnalysisModelConfig(savedId))
-    return savedId as VocabularyAnalysisModelId;
-  return DEFAULT_VOCABULARY_ANALYSIS_MODEL_ID;
 }
 
 /**

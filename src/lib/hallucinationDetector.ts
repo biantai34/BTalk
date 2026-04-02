@@ -13,7 +13,7 @@ export const SPEED_ANOMALY_MAX_DURATION_MS = 1000;
 /** Layer 1 文字長度門檻 */
 export const SPEED_ANOMALY_MIN_CHARS = 10;
 /** Layer 2a 靜音峰值能量門檻（0.0 = 完全靜音, 1.0 = 最大音量） */
-export const SILENCE_PEAK_ENERGY_THRESHOLD = 0.02;
+export const SILENCE_PEAK_ENERGY_THRESHOLD = 0.01;
 /** Layer 2b 低 RMS 門檻 — 搭配高 NSP 聯合判斷（人聲 RMS ≥ 0.03，背景噪音 RMS ≈ 0.005~0.02） */
 export const SILENCE_RMS_THRESHOLD = 0.015;
 /** Layer 2b NSP 門檻（Whisper 認為「可能無語音」的信心度） */

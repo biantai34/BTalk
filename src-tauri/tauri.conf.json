@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicedoc/resources/main/tauri-conf-v2.json",
-  "productName": "SayIt",
-  "version": "0.9.0",
-  "identifier": "com.sayit.app",
+  "productName": "BTalk",
+  "version": "0.9.3",
+  "identifier": "com.bt34.btalk",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -15,8 +15,8 @@
     "windows": [
       {
         "label": "main",
-        "title": "SayIt",
-        "width": 400,
+        "title": "BTalk",
+        "width": 470,
         "height": 100,
         "x": null,
         "y": 0,
@@ -32,7 +32,7 @@
       },
       {
         "label": "main-window",
-        "title": "SayIt-言",
+        "title": "BTalk - 變態輸入法",
         "url": "main-window.html",
         "width": 960,
         "height": 680,
@@ -48,7 +48,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; connect-src 'self' https://api.groq.com; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' blob: http://asset.localhost",
+      "csp": "default-src 'self'; connect-src 'self' https://api.groq.com https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' blob: http://asset.localhost",
       "assetProtocol": {
         "enable": true,
         "scope": [
@@ -60,9 +60,9 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/chenjackle45/SayIt/releases/latest/download/latest.json"
+        "https://github.com/biantai34/BTalk/releases/latest/download/latest.json"
       ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDBENjAzMzYyRTMxMTNGQjgKUldTNFB4SGpZak5nRFJoYUpxR0RGMkZyZUhHYStyNzgxWEwxVHR2ZEFZMzh3eFQ1QlpXVEJLVGUK"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEUzNEQxNkJGNzcwODhGQTgKUldTb2p3aDN2eFpONDJ5d0hRTCtsYytBTHg5b0FISG9ya1BSTmt2dElNdFNXRkhEMzEwMFBPSkgK"
     }
   },
   "bundle": {

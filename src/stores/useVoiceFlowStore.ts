@@ -12,7 +12,9 @@ import {
   getTranscriptionErrorMessage,
 } from "../lib/errorUtils";
 import { captureError } from "../lib/sentry";
-import { enhanceText } from "../lib/enhancer";
+import { enhanceText, buildSystemPrompt } from "../lib/enhancer";
+import { getEditModePromptForLocale } from "../i18n/prompts";
+import type { SupportedLocale } from "../i18n/languageConfig";
 import { analyzeCorrections } from "../lib/vocabularyAnalyzer";
 import i18n from "../i18n";
 import { useVocabularyStore } from "./useVocabularyStore";
@@ -32,6 +34,7 @@ import {
   HOTKEY_PRESSED,
   HOTKEY_RELEASED,
   HOTKEY_TOGGLED,
+  HOTKEY_MODE_TOGGLE,
   QUALITY_MONITOR_RESULT,
   VOICE_FLOW_STATE_CHANGED,
   CORRECTION_MONITOR_RESULT,
@@ -62,6 +65,7 @@ const MAX_ENHANCEMENT_RETRY_COUNT = 3;
 const ERROR_WITH_RETRY_DISPLAY_DURATION_MS = 6000;
 const START_SOUND_DURATION_MS = 400;
 const CANCELLED_DISPLAY_DURATION_MS = 1000;
+const EDIT_MODE_MAX_TOKENS = 4096;
 
 /**
  * 判斷轉錄結果是否為空（無內容可貼上）。
@@ -103,6 +107,8 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   const lastFailedRmsEnergyLevel = ref<number>(0);
   const isAborted = ref<boolean>(false);
   let abortController: AbortController | null = null;
+  const editSourceText = ref<string | null>(null);
+  const isEditMode = computed<boolean>(() => editSourceText.value !== null);
   const isRetryAttempt = ref<boolean>(false);
   const canRetry = computed<boolean>(
     () =>
@@ -110,6 +116,14 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       lastFailedAudioFilePath.value !== null &&
       !isRetryAttempt.value,
   );
+
+  // Double-tap mode toggle state
+  let recordingStartTimestamp = 0;
+  let doubleTapResolve: ((isDoubleTap: boolean) => void) | null = null;
+  let doubleTapDelayTimer: ReturnType<typeof setTimeout> | null = null;
+  const modeSwitchLabel = ref<string>("");
+  let modeSwitchLabelTimer: ReturnType<typeof setTimeout> | null = null;
+  const MODE_SWITCH_LABEL_DURATION_MS = 3000;
 
   let lastMonitorKey = "";
   let isRepositioning = false;
@@ -288,6 +302,8 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     wasEnhanced: boolean;
     audioFilePath: string | null;
     status: "success" | "failed";
+    isEditMode?: boolean;
+    editSourceText?: string | null;
   }): TranscriptionRecord {
     const settingsStore = useSettingsStore();
     return {
@@ -308,6 +324,8 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       createdAt: "",
       audioFilePath: params.audioFilePath,
       status: params.status,
+      isEditMode: params.isEditMode ?? false,
+      editSourceText: params.editSourceText ?? null,
     };
   }
 
@@ -600,7 +618,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
                     fieldText,
                     apiKey,
                     {
-                      modelId: settingsStore.selectedVocabularyAnalysisModelId,
+                      modelId: settingsStore.selectedLlmModelId,
                     },
                   );
 
@@ -647,13 +665,13 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
                         id: crypto.randomUUID(),
                         transcriptionId,
                         apiType: "vocabulary_analysis",
-                        model: settingsStore.selectedVocabularyAnalysisModelId,
+                        model: settingsStore.selectedLlmModelId,
                         promptTokens: analysisResult.usage.promptTokens,
                         completionTokens: analysisResult.usage.completionTokens,
                         totalTokens: analysisResult.usage.totalTokens,
-                        promptTimeMs: analysisResult.usage.promptTimeMs,
-                        completionTimeMs: analysisResult.usage.completionTimeMs,
-                        totalTimeMs: analysisResult.usage.totalTimeMs,
+                        promptTimeMs: analysisResult.usage.promptTimeMs ?? null,
+                        completionTimeMs: analysisResult.usage.completionTimeMs ?? null,
+                        totalTimeMs: analysisResult.usage.totalTimeMs ?? null,
                         audioDurationMs: null,
                         estimatedCostCeiling: calculateChatCostCeiling(
                           analysisResult.usage.totalTokens,
@@ -751,11 +769,11 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       const finalText = params.record.processedText ?? params.record.rawText;
       updateVocabularyWeightsAfterPaste(finalText);
 
-      // 修正偵測（fire-and-forget，需 API key）
+      // 修正偵測（fire-and-forget，需 LLM API key）
       const settingsStore = useSettingsStore();
-      const apiKey = settingsStore.getApiKey();
-      if (apiKey) {
-        startCorrectionDetectionFlow(params.text, params.record.id, apiKey);
+      const llmApiKey = settingsStore.getLlmApiKey();
+      if (llmApiKey) {
+        startCorrectionDetectionFlow(params.text, params.record.id, llmApiKey);
       }
     } catch (pasteError) {
       isRecording.value = false;
@@ -812,9 +830,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         promptTokens: chatUsage.promptTokens,
         completionTokens: chatUsage.completionTokens,
         totalTokens: chatUsage.totalTokens,
-        promptTimeMs: chatUsage.promptTimeMs,
-        completionTimeMs: chatUsage.completionTimeMs,
-        totalTimeMs: chatUsage.totalTimeMs,
+        promptTimeMs: chatUsage.promptTimeMs ?? null,
+        completionTimeMs: chatUsage.completionTimeMs ?? null,
+        totalTimeMs: chatUsage.totalTimeMs ?? null,
         audioDurationMs: null,
         estimatedCostCeiling: calculateChatCostCeiling(
           chatUsage.totalTokens,
@@ -822,6 +840,91 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         ),
       });
     }
+  }
+
+  function clearDoubleTapTimer() {
+    if (doubleTapDelayTimer) {
+      clearTimeout(doubleTapDelayTimer);
+      doubleTapDelayTimer = null;
+    }
+  }
+
+  function clearModeSwitchLabelTimer() {
+    if (modeSwitchLabelTimer) {
+      clearTimeout(modeSwitchLabelTimer);
+      modeSwitchLabelTimer = null;
+    }
+  }
+
+  /**
+   * Wait for double-tap resolution: returns true if mode-toggle event arrives
+   * within 400ms, false if timer expires (not a double-tap).
+   */
+  function waitForDoubleTapResolution(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      doubleTapResolve = resolve;
+      clearDoubleTapTimer();
+      doubleTapDelayTimer = setTimeout(() => {
+        doubleTapDelayTimer = null;
+        doubleTapResolve = null;
+        resolve(false);
+      }, 400);
+    });
+  }
+
+  function handleDoubleTapModeToggle() {
+    if (doubleTapResolve) {
+      // Hold mode double-tap: resolve the waiting promise
+      clearDoubleTapTimer();
+      const resolve = doubleTapResolve;
+      doubleTapResolve = null;
+      resolve(true);
+    } else {
+      // Toggle mode long-press: directly apply mode switch
+      applyDoubleTapModeSwitch();
+    }
+  }
+
+  function applyDoubleTapModeSwitch() {
+    isRecording.value = false;
+
+    // Toggle prompt mode: minimal ↔ active
+    const settingsStore = useSettingsStore();
+    const currentMode = settingsStore.promptMode;
+    const nextMode = currentMode === "minimal" ? "active" : "minimal";
+    settingsStore.promptMode = nextMode;
+    void settingsStore.savePromptMode(nextMode).catch((err) => {
+      writeErrorLog(
+        `useVoiceFlowStore: savePromptMode failed: ${extractErrorMessage(err)}`,
+      );
+    });
+
+    // Flash mode label on HUD — follow the same pattern as transitionTo("success"):
+    // show for N seconds, then transitionTo("idle") which triggers collapse animation.
+    const modeLabel =
+      nextMode === "minimal"
+        ? t("settings.prompt.modeMinimal")
+        : t("settings.prompt.modeActive");
+    modeSwitchLabel.value = modeLabel;
+    clearModeSwitchLabelTimer();
+
+    // Show HUD with mode-switch visual
+    showHud().catch((err) => {
+      writeErrorLog(
+        `useVoiceFlowStore: showHud failed: ${extractErrorMessage(err)}`,
+      );
+    });
+
+    // After display duration, clear label and transition to idle (triggers collapse + hide)
+    modeSwitchLabelTimer = setTimeout(() => {
+      modeSwitchLabel.value = "";
+      modeSwitchLabelTimer = null;
+      transitionTo("idle");
+    }, MODE_SWITCH_LABEL_DURATION_MS);
+
+    writeInfoLog(
+      `useVoiceFlowStore: double-tap mode toggle → ${nextMode}`,
+    );
   }
 
   function handleEscapeAbort() {
@@ -837,6 +940,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     writeInfoLog(`useVoiceFlowStore: ESC abort from ${currentStatus}`);
     isAborted.value = true;
     abortController?.abort();
+    editSourceText.value = null;
 
     // 無條件重置 isRecording，避免永久鎖死
     isRecording.value = false;
@@ -845,6 +949,16 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
       void invoke("stop_recording").catch(() => {});
       stopElapsedTimer();
     }
+
+    // Resolve pending double-tap Promise (prevents handleStopRecording from hanging)
+    if (doubleTapResolve) {
+      clearDoubleTapTimer();
+      const resolve = doubleTapResolve;
+      doubleTapResolve = null;
+      resolve(false);
+    }
+    clearModeSwitchLabelTimer();
+    modeSwitchLabel.value = "";
 
     // 完整清理所有進行中的資源
     clearDelayedMuteTimer();
@@ -862,6 +976,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   async function handleStartRecording() {
     if (isRecording.value) return;
     isRecording.value = true;
+    recordingStartTimestamp = performance.now();
     isAborted.value = false;
     abortController = new AbortController();
     lastWasModified.value = null;
@@ -873,6 +988,22 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     lastFailedPeakEnergyLevel.value = 0;
     lastFailedRmsEnergyLevel.value = 0;
     isRetryAttempt.value = false;
+
+    // 捕獲當前前景視窗（Windows: HUD show 前記住目標，貼上前恢復焦點）
+    void invoke("capture_target_window").catch(() => {});
+
+    // 偵測選取文字（非阻塞）：模擬 Cmd+C 讀剪貼簿，~100ms，遠在錄音結束前完成
+    editSourceText.value = null;
+    invoke<string | null>("read_selected_text")
+      .then((selectedText) => {
+        if (selectedText && selectedText.trim().length > 0) {
+          editSourceText.value = selectedText;
+          writeInfoLog(
+            `useVoiceFlowStore: edit mode activated, selectedText length=${selectedText.length}`,
+          );
+        }
+      })
+      .catch(() => {});
 
     try {
       playSoundIfEnabled("play_start_sound");
@@ -901,6 +1032,25 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
   async function handleStopRecording() {
     if (!isRecording.value) return;
     if (isAborted.value) return;
+
+    // Pre-estimate duration for double-tap detection (before any async work).
+    // Use precise timestamp — recordingElapsedSeconds has 1s resolution, too coarse for 300ms threshold.
+    // Rust double-tap max hold is 300ms; 350ms here adds 50ms buffer for IPC latency.
+    const estimatedDurationMs = performance.now() - recordingStartTimestamp;
+    if (estimatedDurationMs < 350) {
+      const isDoubleTap = await waitForDoubleTapResolution();
+      if (isAborted.value) return;
+      if (isDoubleTap) {
+        // Double-tap confirmed: silently cancel, apply mode switch
+        stopElapsedTimer();
+        clearDelayedMuteTimer();
+        void restoreSystemAudio();
+        void invoke("stop_recording").catch(() => {});
+        applyDoubleTapModeSwitch();
+        return;
+      }
+      // Not a double-tap — fall through to normal stop flow
+    }
 
     clearDelayedMuteTimer();
     await restoreSystemAudio();
@@ -1071,6 +1221,19 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         return;
       }
 
+      // 編輯模式：語音是指令，選取文字是待處理內容
+      if (isEditMode.value && editSourceText.value) {
+        await handleEditModeFlow({
+          voiceInstruction: result.rawText,
+          selectedText: editSourceText.value,
+          transcriptionId,
+          recordingDurationMs,
+          transcriptionDurationMs: result.transcriptionDurationMs,
+          audioFilePath,
+        });
+        return;
+      }
+
       if (
         !settingsStore.isEnhancementThresholdEnabled ||
         result.rawText.length >= settingsStore.enhancementThresholdCharCount
@@ -1079,6 +1242,12 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         const enhancementStartTime = performance.now();
 
         try {
+          await settingsStore.refreshLlmApiKey();
+          const llmApiKey = settingsStore.getLlmApiKey();
+          if (!llmApiKey) {
+            throw new Error(t("errors.apiKeyMissing"));
+          }
+
           const enhancementTermList =
             await vocabularyStore.getTopTermListByWeight(50);
           const enhanceOptions = {
@@ -1091,7 +1260,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
 
           let enhanceResult = await enhanceText(
             result.rawText,
-            apiKey,
+            llmApiKey,
             enhanceOptions,
           );
           if (isAborted.value) return;
@@ -1111,7 +1280,7 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
             );
             enhanceResult = await enhanceText(
               result.rawText,
-              apiKey,
+              llmApiKey,
               enhanceOptions,
             );
             if (isAborted.value) return;
@@ -1252,6 +1421,85 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     }
   }
 
+  async function handleEditModeFlow(params: {
+    voiceInstruction: string;
+    selectedText: string;
+    transcriptionId: string;
+    recordingDurationMs: number;
+    transcriptionDurationMs: number;
+    audioFilePath: string | null;
+  }) {
+    transitionTo("editing", t("voiceFlow.editing"));
+    const editStartTime = performance.now();
+
+    try {
+      const settingsStore = useSettingsStore();
+      await settingsStore.refreshLlmApiKey();
+      const llmApiKey = settingsStore.getLlmApiKey();
+      if (!llmApiKey) {
+        throw new Error(t("errors.apiKeyMissing"));
+      }
+
+      const locale = i18n.global.locale.value as SupportedLocale;
+      const basePrompt = getEditModePromptForLocale(locale);
+      const systemPrompt = buildSystemPrompt(
+        `${basePrompt}\n\n<instruction>\n${params.voiceInstruction}\n</instruction>`,
+      );
+
+      const editResult = await enhanceText(params.selectedText, llmApiKey, {
+        systemPrompt,
+        modelId: settingsStore.selectedLlmModelId,
+        signal: abortController?.signal,
+        maxTokens: EDIT_MODE_MAX_TOKENS,
+      });
+      if (isAborted.value) return;
+
+      const editDurationMs = performance.now() - editStartTime;
+
+      const record = buildTranscriptionRecord({
+        id: params.transcriptionId,
+        rawText: params.voiceInstruction,
+        processedText: editResult.text,
+        recordingDurationMs: params.recordingDurationMs,
+        transcriptionDurationMs: params.transcriptionDurationMs,
+        enhancementDurationMs: editDurationMs,
+        wasEnhanced: true,
+        audioFilePath: params.audioFilePath,
+        status: "success",
+        isEditMode: true,
+        editSourceText: params.selectedText,
+      });
+
+      writeInfoLog(`Edit mode result: "${editResult.text}"`);
+
+      await completePasteFlow({
+        text: editResult.text,
+        successMessage: t("voiceFlow.editSuccess"),
+        record,
+        chatUsage: editResult.usage,
+      });
+
+      writeInfoLog(
+        `useVoiceFlowStore: edit mode completed, instruction="${params.voiceInstruction}", editDurationMs=${Math.round(editDurationMs)}`,
+      );
+    } catch (editError) {
+      if (isAborted.value) return;
+      writeErrorLog(
+        `useVoiceFlowStore: edit mode failed: ${extractErrorMessage(editError)}`,
+      );
+      captureError(editError, { source: "voice-flow", step: "edit-mode" });
+
+      // 編輯失敗不貼上任何東西（避免語音指令覆蓋選取文字）
+      failRecordingFlow(
+        t("voiceFlow.editFailed"),
+        `useVoiceFlowStore: edit mode LLM call failed`,
+        editError,
+      );
+    } finally {
+      editSourceText.value = null;
+    }
+  }
+
   async function handleRetryTranscription() {
     if (!lastFailedAudioFilePath.value || !lastFailedTranscriptionId.value) {
       return;
@@ -1340,9 +1588,15 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
         const enhancementStartTime = performance.now();
 
         try {
+          await settingsStore.refreshLlmApiKey();
+          const llmApiKey = settingsStore.getLlmApiKey();
+          if (!llmApiKey) {
+            throw new Error(t("errors.apiKeyMissing"));
+          }
+
           const enhancementTermList =
             await vocabularyStore.getTopTermListByWeight(50);
-          const enhanceResult = await enhanceText(result.rawText, apiKey, {
+          const enhanceResult = await enhanceText(result.rawText, llmApiKey, {
             systemPrompt: settingsStore.getAiPrompt(),
             vocabularyTermList:
               enhancementTermList.length > 0 ? enhancementTermList : undefined,
@@ -1552,6 +1806,9 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
           );
         },
       ),
+      listenToEvent(HOTKEY_MODE_TOGGLE, () => {
+        handleDoubleTapModeToggle();
+      }),
       listenToEvent<HotkeyErrorPayload>(HOTKEY_ERROR, (event) => {
         const hudMessage = getHotkeyErrorMessage(event.payload.error);
         if (
@@ -1585,6 +1842,8 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     clearCollapseHideTimer();
     clearDelayedMuteTimer();
     clearLearnedHideTimer();
+    clearDoubleTapTimer();
+    clearModeSwitchLabelTimer();
     stopMonitorPolling();
     stopElapsedTimer();
     stopCorrectionSnapshotPolling();
@@ -1602,6 +1861,8 @@ export const useVoiceFlowStore = defineStore("voice-flow", () => {
     recordingElapsedSeconds,
     lastWasModified,
     canRetry,
+    modeSwitchLabel,
+    isEditMode,
     initialize,
     cleanup,
     handleRetryTranscription,

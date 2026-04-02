@@ -2,12 +2,74 @@
 
 SayIt 版本更新紀錄。
 
-## [0.9.0] - 2026-03-24
+## [0.9.3] - 2026-03-28
+
+### Fixed
+
+- 簡易模式 Fn 快捷鍵在 Globe 鍵 MacBook 上一觸發就馬上送出的問題：FlagsChanged handler 從 toggle-based 改為 flag-based 偵測，只回應 keycode 63 事件
+
+## [0.9.2] - 2026-03-28
 
 ### Added
+
+- Google Gemini LLM Provider：支援 Gemini 2.5 Flash 和 Flash-Lite（有免費額度），新增 API Key 管理、request/response 格式轉換
+- Gemini SAFETY block 偵測：`finishReason` 非 STOP 時拋出有意義的錯誤，不再靜默 fallback
+- Gemini 單元測試：buildFetchParams + parseProviderResponse + helpers（6 個測試）
+- Tauri HTTP scope + CSP 加入 `generativelanguage.googleapis.com`
+- 升級通知合併 LLM provider 項目，新增 Gemini 說明
+- OpenAI 標示「推薦」（5 語系）
+
+### Changed
+
+- Provider 排序：Groq → Gemini → OpenAI → Anthropic（免費的在前面）
+- Provider RadioGroup 從 3 欄改 2 欄（4 個 provider 排 2×2）
+- 5 語系 provider description 加入 Gemini 有免費額度
+
+## [0.9.1] - 2026-03-28
+
+### Fixed
+
+- HUD notch 寬度加寬（350→420px），避免錄音中模式標籤被 MacBook camera 區域遮擋
+- mode-switch notch 寬度加寬（200→350px），確保切換模式標籤完整顯示
+- mode-switch 消失時新增 collapsing 縮小動畫（原為直接淡出）
+- Tauri HUD 視窗與 Rust 定位常數同步更新（400→470px）
+
+## [0.9.0] - 2026-03-28
+
+### Added
+
+- 編輯選取文字功能：選取文字後觸發 SayIt，語音變成 AI 指令（翻譯、改寫、摘要等），處理結果直接取代原文
+- Rust `read_selected_text` command：macOS AXSelectedText 讀取選取文字，共用 `FocusedElementContext` AX 走訪結構
+- 功能介紹頁面：側邊欄新增「功能介紹」（Lightbulb icon），展示 8 個操作功能卡片
+- Edit mode prompt 模板：五語系編輯模式專用 prompt（`EDIT_MODE_PROMPTS`）
+- `EnhanceOptions.maxTokens`：edit mode 使用 4096（既有增強為 2048）
+- DB migration v7→v8：`is_edit_mode`、`edit_source_text` 欄位
+- HUD 琥珀色「編輯」badge + `HudStatus: "editing"` 狀態
+- 升級通知新增 item9（編輯選取文字）並依亮點重新排序
+
+### Improved
+
+- Rust `text_field_reader.rs` 重構：提取 `FocusedElementContext` struct 消除 ~50 行重複 AX 走訪邏輯
+- `isEditMode` 改為 computed（從 `editSourceText` 推導），消除冗餘 state
+- `read_selected_text` 非阻塞偵測（`.then()`），不延遲開始音效
+- HUD badge CSS 提取 `.hud-badge` 共用 base class
+- `useHistoryStore` SQL SELECT 欄位提取 `TRANSCRIPTION_SELECT_COLUMNS` 常數
+- 功能介紹文案改為生活化口吻（五語系）
+
+## [0.8.9] - 2026-03-19
+
+### Fixed
+
+- 修正 macOS 上選擇特定麥克風後停止錄音，麥克風指示燈（橘色圓點）不消失的安全問題：cpal 0.15.3 CoreAudio backend 對非預設裝置建立 disconnect listener 造成 Arc 循環引用，AudioUnit 永不釋放。修正方式為優先使用 default_input_device() 避免循環引用，並在停止時顯式呼叫 stream.pause() 作為兜底防禦
+
+## [0.9.0-btalk.1] - 2026-03-24
+
+### Added
+
 - 新增 macOS Intel 和 Windows 下載連結
 
 ### Changed
+
 - Release 產出檔名從 SayIt 改為 BTalk
 
 ## [0.8.8] - 2026-03-18

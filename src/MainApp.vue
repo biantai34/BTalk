@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   LayoutDashboard,
+  Lightbulb,
   Settings,
 } from "lucide-vue-next";
 import { useI18n } from "vue-i18n";
@@ -55,6 +56,7 @@ const navItems = computed(() => [
   { path: "/history", label: t("mainApp.nav.history"), icon: markRaw(FileText) },
   { path: "/dictionary", label: t("mainApp.nav.dictionary"), icon: markRaw(BookOpen) },
   { path: "/settings", label: t("mainApp.nav.settings"), icon: markRaw(Settings) },
+  { path: "/guide", label: t("mainApp.nav.guide"), icon: markRaw(Lightbulb) },
 ]);
 
 const route = useRoute();
@@ -84,6 +86,7 @@ const showAutoInstallDialog = ref(false);
 // 升級提示（watch 而非 onMounted，因為 loadSettings 在 mount 之後才執行）
 const settingsStore = useSettingsStore();
 const showUpgradeNoticeDialog = ref(false);
+const upgradeNoticeItemCount = 9;
 watch(() => settingsStore.showPromptUpgradeNotice, (shouldShow) => {
   if (shouldShow) {
     showUpgradeNoticeDialog.value = true;
@@ -369,13 +372,11 @@ onUnmounted(() => {
       <AlertDialogHeader>
         <AlertDialogTitle>{{ $t("mainApp.upgradeNotice.title") }}</AlertDialogTitle>
         <AlertDialogDescription as="div">
-          <ul class="mt-2 space-y-1.5 text-sm text-muted-foreground">
-            <li>{{ $t("mainApp.upgradeNotice.item1") }}</li>
-            <li>{{ $t("mainApp.upgradeNotice.item2") }}</li>
-            <li>{{ $t("mainApp.upgradeNotice.item3") }}</li>
-            <li>{{ $t("mainApp.upgradeNotice.item4") }}</li>
-            <li>{{ $t("mainApp.upgradeNotice.item5") }}</li>
-          </ul>
+          <ol class="mt-2 space-y-3 text-sm text-muted-foreground list-decimal list-inside">
+            <li v-for="i in upgradeNoticeItemCount" :key="i">
+              {{ $t(`mainApp.upgradeNotice.item${i}`) }}
+            </li>
+          </ol>
         </AlertDialogDescription>
       </AlertDialogHeader>
       <AlertDialogFooter>

@@ -174,8 +174,11 @@ vi.mock("../../src/stores/useSettingsStore", () => ({
   useSettingsStore: () => ({
     loadSettings: mockLoadSettings,
     getApiKey: () => mockSettingsState.apiKey,
+    getLlmApiKey: () => mockSettingsState.apiKey,
     getAiPrompt: () => mockSettingsState.aiPrompt,
     refreshApiKey: vi.fn().mockResolvedValue(undefined),
+    refreshLlmApiKey: vi.fn().mockResolvedValue(undefined),
+    hasLlmApiKey: true,
     refreshEnhancementThreshold: vi.fn().mockResolvedValue(undefined),
     triggerMode: mockSettingsState.triggerMode,
     get isEnhancementThresholdEnabled() {

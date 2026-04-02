@@ -31,6 +31,9 @@
       "modeUpdated": "触发模式已更新",
       "keySet": "触发键已设为 {key}",
       "customKeyDisplay": "自定义键 ({keycode})",
+      "doubleTapHint": "长按模式下，快速按两下触发键可切换语音模式",
+      "longPressHint": "切换模式下，长按触发键超过一秒可切换语音模式",
+      "comboKey": "组合键",
       "keys": {
         "fn": "Fn",
         "leftOption": "左 Option (⌥)",
@@ -45,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key（语音转录 + Groq LLM）",
       "set": "已设置",
       "notSet": "未设置",
       "goToConsole": "前往 Groq Console",
-      "instruction": "请在 Groq Console 生成 API Key 后粘贴。",
+      "instruction": "此 Key 用于语音转录（Whisper）。若 LLM Provider 选择 Groq，也会用于文字整理。",
       "onboarding": "欢迎使用 SayIt！请先设置 Groq API Key 以启用语音输入功能。",
       "show": "显示",
       "hide": "隐藏",
@@ -57,6 +60,26 @@
       "deleted": "API Key 已删除",
       "confirmDelete": "确认删除？",
       "delete": "删除 API Key"
+    },
+    "provider": {
+      "title": "LLM 模型服务",
+      "description": "选择文字整理和字典分析使用的 AI 服务。Groq 和 Gemini 提供免费额度，OpenAI 和 Anthropic 为付费服务。",
+      "groq": "Groq（免费）",
+      "openai": "OpenAI（推荐）",
+      "anthropic": "Anthropic",
+      "gemini": "Google Gemini（免费额度）",
+      "groqNote": "使用上方 Groq API Key"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "前往 OpenAI Platform 获取 API Key",
+      "anthropicInstruction": "前往 Anthropic Console 获取 API Key",
+      "goToOpenai": "前往 OpenAI Platform",
+      "goToAnthropic": "前往 Anthropic Console",
+      "geminiTitle": "Gemini API Key",
+      "geminiInstruction": "前往 Google AI Studio 获取 API Key（有免费额度）",
+      "goToGemini": "前往 Google AI Studio"
     },
     "model": {
       "title": "模型选择",
@@ -72,7 +95,8 @@
       "balanced": "平衡 · 默认",
       "stableCostly": "稳定可靠 · 成本高",
       "fastCheap": "最快 · 最便宜",
-      "smartestSlow": "最聪明 · 较慢"
+      "smartestSlow": "最聪明 · 较慢",
+      "premium": "高品质"
     },
     "prompt": {
       "title": "AI 整理 Prompt",
@@ -125,6 +149,8 @@
       "description": "选择录音使用的麦克风",
       "deviceLabel": "麦克风",
       "systemDefault": "系统默认",
+      "systemDefaultWithDevice": "系统默认（{device}）",
+      "volumePreview": "麦克风音量预览",
       "refresh": "刷新",
       "refreshed": "已检测到 {count} 个设备",
       "updated": "输入设备已更新"
@@ -148,8 +174,6 @@
       "title": "智能字典学习",
       "description": "转录粘贴后自动检测修正，通过 AI 分析学习新词汇",
       "privacyNote": "启用后，系统会读取光标附近的文字用于 AI 分析，不存储原文",
-      "analysisModelLabel": "字典分析模型",
-      "analysisModelDescription": "用于判断修正词汇是否应加入字典的 AI 模型（独立于文字整理模型）",
       "analysisModelUpdated": "字典分析模型已更新"
     }
   },
@@ -240,18 +264,27 @@
     "pasteSuccessUnenhanced": "已粘贴（未整理）",
     "enhancing": "整理中...",
     "pasteFailed": "粘贴失败",
+    "editMode": "编辑",
+    "editing": "编辑中...",
+    "editSuccess": "已编辑 ✓",
+    "editFailed": "编辑失败",
     "recordingTooShort": "录音时间太短",
     "vocabularyLearnedLabel": "新增字典",
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 等 {count} 个",
     "retryFailed": "识别失败，请重新录音",
-    "cancelled": "已取消"
+    "cancelled": "已取消",
+    "modeSwitched": "已切换至{mode}模式",
+    "commandMode": "指令"
   },
   "errors": {
     "databaseInitFailed": "数据库初始化失败，历史记录暂时无法使用。请重新启动应用程序。",
     "apiKeyEmpty": "API Key 不可为空",
     "promptEmpty": "Prompt 不可为空",
     "apiKeyNotSet": "API Key 未设置",
+    "openaiApiKeyNotSet": "OpenAI API Key 未设定",
+    "anthropicApiKeyNotSet": "Anthropic API Key 未设定",
+    "providerAuthFailed": "API Key 验证失败（{provider}）",
     "enhancementTimeout": "AI 整理超时",
     "apiKeyMissing": "请设置 API Key",
     "mic": {
@@ -263,6 +296,7 @@
     },
     "network": "网络连接中断",
     "transcription": {
+      "fileTooLarge": "录音文件过大，请缩短录音时间",
       "invalidAudio": "音频格式无效或录音数据不完整",
       "invalidApiKey": "API Key 无效或已过期",
       "rateLimited": "请求过于频繁，稍后再试",
@@ -305,7 +339,8 @@
       "dashboard": "仪表板",
       "history": "历史记录",
       "dictionary": "自定义字典",
-      "settings": "设置"
+      "settings": "设置",
+      "guide": "功能介绍"
     },
     "update": {
       "installFailed": "安装失败，请手动下载更新",
@@ -330,12 +365,53 @@
     },
     "upgradeNotice": {
       "title": "SayIt 更新摘要",
-      "item1": "1. 新增麦克风选择：可在设置中指定录音使用的输入设备",
-      "item2": "2. 改善小声说话误判：新增 peak energy 逃生机制，减少误报",
-      "item3": "3. AI 整理更稳定：降低随机性，异常结果自动重试",
-      "item4": "4. AI 整理保留语气：问句不再被改写成肯定句",
-      "item5": "5. 改善麦克风错误提示：精确显示设备未找到、被占用等原因",
+      "item1": "更多 LLM 选择：新增 Google Gemini（有免费额度）、OpenAI（推荐）和 Anthropic。Groq 免费模型不够聪明的话，到设置切换 Provider 试试看，体感会好很多",
+      "item2": "编辑选取文字：先选取文字再触发 SayIt，语音就变成指令。说「翻译成英文」或「让语气更正式」，AI 会直接改好贴回去",
+      "item3": "组合键触发：用 ⌘+J 这样的组合键启动录音，再也不怕误触",
+      "item4": "快速切模式：按两下或长按触发键，不用进设置就能切换精简和积极模式",
+      "item5": "麦克风选择器改善：显示默认设备名称，还有音量预览条",
+      "item6": "录音时看得到模式：小窗口会显示当前使用的语音模式",
+      "item7": "切换时屏幕提示：切换成功后上方会显示新模式名称",
+      "item8": "Toggle 模式不再重复粘贴：修复了特定情境下文字被粘贴两次的问题",
+      "item9": "录音定位：目前专为短口语快速转录设计，暂不适合长时间会议录音。未来会针对长录音场景持续优化",
       "dismiss": "了解"
+    }
+  },
+  "featureGuide": {
+    "subtitle": "以下是 SayIt 所有可用的操作功能，帮助你快速上手。",
+    "voiceInput": {
+      "title": "语音输入",
+      "description": "想打字？不用打，直接说。按住快捷键说话，放开后 AI 会自动整理好文字，直接贴到你光标的位置。打消息、写笔记、回邮件都可以用。",
+      "steps": "操作：按住快捷键 → 说话 → 松开 → 文字自动粘贴"
+    },
+    "editSelection": {
+      "title": "编辑选取文字",
+      "description": "看到一段英文想翻译？选起来，按快捷键，说「翻成中文」，就好了。也可以说「帮我改正式一点」「缩短成一句话」之类的，AI 会直接改好放回去。",
+      "steps": "操作：选取文字 → 按快捷键 → 说你想怎么改 → 改好自动贴回"
+    },
+    "hotkey": {
+      "title": "快捷键设置",
+      "description": "怕按错键不小心触发？可以设成组合键，像 ⌘+J 这样要两个键一起按才会启动。也可以用单颗键，看你习惯。到设置里就能改。"
+    },
+    "triggerMode": {
+      "title": "触发模式",
+      "description": "两种用法：「按住说话」就像对讲机，按着才录，放开就停。「按一下开始」适合讲比较长的话，按一次开始录，再按一次才停。"
+    },
+    "quickModeSwitch": {
+      "title": "快速切换 AI 模式",
+      "description": "觉得 AI 整理太少或太多？不用进设置，连按两下快捷键就能在「精简」和「积极」之间切换，屏幕上方会告诉你现在是哪个模式。"
+    },
+    "promptMode": {
+      "title": "AI 整理模式",
+      "description": "「精简」只帮你修错字加标点，原话不太动。「积极」会顺便整理排版，让文字更好读。觉得都不够？用「自定义」写你自己的指令给 AI。"
+    },
+    "dictionary": {
+      "title": "自定义字典",
+      "description": "手动添加专有名词、品牌名称等，AI 整理时会优先采用正确写法。开启「智能学习」后，AI 会自动从你的修正中收录新词。"
+    },
+    "history": {
+      "title": "历史记录",
+      "description": "所有转录结果都会保存，可搜索、复制文字、删除记录，也可以重新播放录音文件。"
     }
   }
 }

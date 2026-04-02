@@ -31,6 +31,9 @@
       "modeUpdated": "Trigger mode updated",
       "keySet": "Trigger key set to {key}",
       "customKeyDisplay": "Custom Key ({keycode})",
+      "doubleTapHint": "In Hold mode, double-tap the trigger key to switch voice mode",
+      "longPressHint": "In Toggle mode, hold the trigger key for over 1 second to switch voice mode",
+      "comboKey": "Combo Key",
       "keys": {
         "fn": "Fn",
         "leftOption": "Left Option",
@@ -45,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key (Speech-to-Text + Groq LLM)",
       "set": "Set",
       "notSet": "Not Set",
       "goToConsole": "Go to Groq Console",
-      "instruction": "Generate an API Key in Groq Console and paste it here.",
+      "instruction": "This Key is used for speech transcription (Whisper). If Groq is selected as LLM Provider, it's also used for text enhancement.",
       "onboarding": "Welcome to SayIt! Please set up your Groq API Key to enable voice input.",
       "show": "Show",
       "hide": "Hide",
@@ -57,6 +60,26 @@
       "deleted": "API Key deleted",
       "confirmDelete": "Confirm deletion?",
       "delete": "Delete API Key"
+    },
+    "provider": {
+      "title": "LLM Provider",
+      "description": "Select the AI service for text enhancement and dictionary analysis. Groq and Gemini offer free quota, OpenAI and Anthropic are paid services.",
+      "groq": "Groq (Free)",
+      "openai": "OpenAI (Recommended)",
+      "anthropic": "Anthropic",
+      "gemini": "Google Gemini (Free Quota)",
+      "groqNote": "Uses Groq API Key above"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "Get your API Key from OpenAI Platform",
+      "anthropicInstruction": "Get your API Key from Anthropic Console",
+      "goToOpenai": "Go to OpenAI Platform",
+      "goToAnthropic": "Go to Anthropic Console",
+      "geminiTitle": "Gemini API Key",
+      "geminiInstruction": "Get your API Key from Google AI Studio (free quota available)",
+      "goToGemini": "Go to Google AI Studio"
     },
     "model": {
       "title": "Model Selection",
@@ -72,7 +95,8 @@
       "balanced": "Balanced · Default",
       "stableCostly": "Stable · Costly",
       "fastCheap": "Fastest · Cheapest",
-      "smartestSlow": "Smartest · Slower"
+      "smartestSlow": "Smartest · Slower",
+      "premium": "Premium"
     },
     "prompt": {
       "title": "AI Enhancement Prompt",
@@ -125,6 +149,8 @@
       "description": "Select the microphone for recording",
       "deviceLabel": "Microphone",
       "systemDefault": "System Default",
+      "systemDefaultWithDevice": "System Default ({device})",
+      "volumePreview": "Microphone volume preview",
       "refresh": "Refresh",
       "refreshed": "{count} device(s) detected",
       "updated": "Input device updated"
@@ -148,8 +174,6 @@
       "title": "Smart Dictionary Learning",
       "description": "Auto-detect corrections after paste and learn new terms via AI analysis",
       "privacyNote": "When enabled, the system reads text near the cursor for AI analysis. No original text is stored",
-      "analysisModelLabel": "Dictionary Analysis Model",
-      "analysisModelDescription": "AI model for determining whether corrected terms should be added to the dictionary (independent from text enhancement model)",
       "analysisModelUpdated": "Dictionary analysis model updated"
     }
   },
@@ -240,18 +264,27 @@
     "pasteSuccessUnenhanced": "Pasted (unenhanced)",
     "enhancing": "Enhancing...",
     "pasteFailed": "Paste failed",
+    "editMode": "Edit",
+    "editing": "Editing...",
+    "editSuccess": "Edited ✓",
+    "editFailed": "Edit failed",
     "recordingTooShort": "Recording too short",
     "vocabularyLearnedLabel": "Added to dictionary",
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} +{count} more",
     "retryFailed": "Recognition failed, please record again",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "modeSwitched": "Switched to {mode} mode",
+    "commandMode": "Command"
   },
   "errors": {
     "databaseInitFailed": "Database initialization failed. History is temporarily unavailable. Please restart the app.",
     "apiKeyEmpty": "API Key cannot be empty",
     "promptEmpty": "Prompt cannot be empty",
     "apiKeyNotSet": "API Key not set",
+    "openaiApiKeyNotSet": "OpenAI API Key not set",
+    "anthropicApiKeyNotSet": "Anthropic API Key not set",
+    "providerAuthFailed": "API Key authentication failed ({provider})",
     "enhancementTimeout": "AI enhancement timed out",
     "apiKeyMissing": "Please set your API Key",
     "mic": {
@@ -263,6 +296,7 @@
     },
     "network": "Network connection lost",
     "transcription": {
+      "fileTooLarge": "Recording file too large. Please shorten your recording",
       "invalidAudio": "Invalid audio format or incomplete recording data",
       "invalidApiKey": "API Key is invalid or expired",
       "rateLimited": "Too many requests. Please try again later",
@@ -305,7 +339,8 @@
       "dashboard": "Dashboard",
       "history": "History",
       "dictionary": "Dictionary",
-      "settings": "Settings"
+      "settings": "Settings",
+      "guide": "Feature Guide"
     },
     "update": {
       "installFailed": "Installation failed. Please download the update manually",
@@ -330,12 +365,53 @@
     },
     "upgradeNotice": {
       "title": "SayIt Update Summary",
-      "item1": "1. Microphone selection: choose your input device in settings",
-      "item2": "2. Improved soft speech detection: peak energy escape hatch reduces false positives",
-      "item3": "3. More stable AI enhancement: lower randomness, auto-retry on anomalous results",
-      "item4": "4. AI enhancement preserves tone: questions are no longer rewritten as statements",
-      "item5": "5. Better microphone errors: precise messages for device not found, busy, etc.",
+      "item1": "More LLM choices: added Google Gemini (free quota), OpenAI (recommended), and Anthropic. If Groq's free models aren't smart enough, switch Provider in Settings for a much better experience",
+      "item2": "Edit selected text: select text first, then trigger SayIt — your voice becomes an instruction. Say \"translate to English\" or \"make it more formal\" and AI will process and replace it directly",
+      "item3": "Combo hotkeys: use ⌘+J or similar combos as your trigger — no more accidental activations",
+      "item4": "Quick mode switch: double-tap or long-press your trigger key to switch between Minimal and Active without opening settings",
+      "item5": "Better mic selector: shows default device name with a volume preview bar",
+      "item6": "Mode badge while recording: the on-screen notch shows which voice mode you're using",
+      "item7": "Mode switch confirmation: a visual indicator appears on screen when you switch modes",
+      "item8": "Toggle mode paste fix: resolved an issue where text was pasted twice in certain scenarios",
+      "item9": "Usage note: SayIt is designed for quick voice-to-text dictation. Long meeting recordings are not yet supported, but we're working on it for future updates",
       "dismiss": "Got it"
+    }
+  },
+  "featureGuide": {
+    "subtitle": "Here are all available features in SayIt to help you get started.",
+    "voiceInput": {
+      "title": "Voice Input",
+      "description": "Don't want to type? Just talk. Hold the hotkey, say what you want, let go — AI cleans it up and pastes it right where your cursor is. Great for messages, notes, and emails.",
+      "steps": "How to: hold hotkey → speak → release → text is pasted automatically"
+    },
+    "editSelection": {
+      "title": "Edit Selected Text",
+      "description": "See a paragraph you want to translate? Select it, press the hotkey, and say \"translate to Chinese.\" You can also say things like \"make it more formal\" or \"shorten to one sentence\" — AI will edit it and put it right back.",
+      "steps": "How to: select text → press hotkey → say what you want → edited text replaces the original"
+    },
+    "hotkey": {
+      "title": "Hotkey Setup",
+      "description": "Worried about triggering it by accident? Set a combo key like ⌘+J so it only activates when you press both keys. Or keep it simple with a single key. Change it anytime in Settings."
+    },
+    "triggerMode": {
+      "title": "Trigger Mode",
+      "description": "Two styles: \"Hold to talk\" works like a walkie-talkie — hold the key to record, let go to stop. \"Tap to start\" is better for longer speech — press once to start, press again to stop."
+    },
+    "quickModeSwitch": {
+      "title": "Quick Mode Switch",
+      "description": "Want AI to do more or less with your text? Double-tap the hotkey to switch between Minimal and Active modes on the fly. You'll see a confirmation pop up on screen. No need to dig into Settings."
+    },
+    "promptMode": {
+      "title": "AI Processing Mode",
+      "description": "\"Minimal\" just fixes typos and adds punctuation — keeps your words mostly as-is. \"Active\" also tidies up the layout so it reads better. Want full control? Use \"Custom\" to write your own instructions for AI."
+    },
+    "dictionary": {
+      "title": "Custom Dictionary",
+      "description": "Add proper nouns, brand names, and jargon so AI uses the correct spelling. Enable Smart Learning to let AI automatically pick up new terms from your corrections."
+    },
+    "history": {
+      "title": "History",
+      "description": "All transcriptions are saved. Search, copy text, delete records, or replay the original audio recording."
     }
   }
 }

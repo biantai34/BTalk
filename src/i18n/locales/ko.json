@@ -31,6 +31,9 @@
       "modeUpdated": "트리거 모드가 업데이트되었습니다",
       "keySet": "트리거 키가 {key}(으)로 설정되었습니다",
       "customKeyDisplay": "사용자 정의 키 ({keycode})",
+      "doubleTapHint": "홀드 모드에서 트리거 키를 빠르게 두 번 눌러 음성 모드를 전환합니다",
+      "longPressHint": "토글 모드에서 트리거 키를 1초 이상 길게 눌러 음성 모드를 전환합니다",
+      "comboKey": "콤보 키",
       "keys": {
         "fn": "Fn",
         "leftOption": "왼쪽 Option (⌥)",
@@ -45,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key (음성 인식 + Groq LLM)",
       "set": "설정됨",
       "notSet": "미설정",
       "goToConsole": "Groq Console로 이동",
-      "instruction": "Groq Console에서 API Key를 생성한 후 붙여넣으세요.",
+      "instruction": "이 키는 음성 인식(Whisper)에 사용됩니다. LLM 제공업체로 Groq를 선택하면 텍스트 정리에도 사용됩니다.",
       "onboarding": "SayIt에 오신 것을 환영합니다! 음성 입력 기능을 사용하려면 먼저 Groq API Key를 설정하세요.",
       "show": "표시",
       "hide": "숨기기",
@@ -57,6 +60,26 @@
       "deleted": "API Key가 삭제되었습니다",
       "confirmDelete": "삭제하시겠습니까?",
       "delete": "API Key 삭제"
+    },
+    "provider": {
+      "title": "LLM 제공업체",
+      "description": "텍스트 정리와 사전 분석에 사용할 AI 서비스를 선택하세요. Groq와 Gemini는 무료 할당량을 제공하며, OpenAI와 Anthropic는 유료입니다.",
+      "groq": "Groq (무료)",
+      "openai": "OpenAI (추천)",
+      "anthropic": "Anthropic",
+      "gemini": "Google Gemini (무료 할당량)",
+      "groqNote": "위의 Groq API Key 사용"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "OpenAI Platform에서 API Key를 받으세요",
+      "anthropicInstruction": "Anthropic Console에서 API Key를 받으세요",
+      "goToOpenai": "OpenAI Platform으로 이동",
+      "goToAnthropic": "Anthropic Console로 이동",
+      "geminiTitle": "Gemini API Key",
+      "geminiInstruction": "Google AI Studio에서 API Key를 받으세요 (무료 할당량 제공)",
+      "goToGemini": "Google AI Studio로 이동"
     },
     "model": {
       "title": "모델 선택",
@@ -72,7 +95,8 @@
       "balanced": "균형 · 기본",
       "stableCostly": "안정 · 고비용",
       "fastCheap": "가장 빠름 · 가장 저렴",
-      "smartestSlow": "가장 똑똑 · 느림"
+      "smartestSlow": "가장 똑똑 · 느림",
+      "premium": "프리미엄"
     },
     "prompt": {
       "title": "AI 정리 Prompt",
@@ -125,6 +149,8 @@
       "description": "녹음에 사용할 마이크를 선택하세요",
       "deviceLabel": "마이크",
       "systemDefault": "시스템 기본값",
+      "systemDefaultWithDevice": "시스템 기본값 ({device})",
+      "volumePreview": "마이크 볼륨 미리보기",
       "refresh": "새로고침",
       "refreshed": "{count}개의 장치가 감지되었습니다",
       "updated": "입력 장치가 업데이트되었습니다"
@@ -148,8 +174,6 @@
       "title": "스마트 사전 학습",
       "description": "붙여넣기 후 수정을 자동 감지하고 AI 분석으로 새 용어 학습",
       "privacyNote": "활성화하면 AI 분석을 위해 커서 주변의 텍스트를 읽습니다. 원문은 저장되지 않습니다",
-      "analysisModelLabel": "사전 분석 모델",
-      "analysisModelDescription": "수정된 용어를 사전에 추가할지 판단하는 AI 모델 (텍스트 정리 모델과 독립)",
       "analysisModelUpdated": "사전 분석 모델이 업데이트되었습니다"
     }
   },
@@ -240,18 +264,27 @@
     "pasteSuccessUnenhanced": "붙여넣기 완료 (미정리)",
     "enhancing": "정리 중...",
     "pasteFailed": "붙여넣기 실패",
+    "editMode": "편집",
+    "editing": "편집 중...",
+    "editSuccess": "편집 완료 ✓",
+    "editFailed": "편집 실패",
     "recordingTooShort": "녹음 시간이 너무 짧습니다",
     "vocabularyLearnedLabel": "사전에 추가",
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 외 {count}개",
     "retryFailed": "인식 실패, 다시 녹음해 주세요",
-    "cancelled": "취소됨"
+    "cancelled": "취소됨",
+    "modeSwitched": "{mode} 모드로 전환되었습니다",
+    "commandMode": "명령"
   },
   "errors": {
     "databaseInitFailed": "데이터베이스 초기화에 실패했습니다. 기록을 일시적으로 사용할 수 없습니다. 앱을 다시 시작해 주세요.",
     "apiKeyEmpty": "API Key는 비워둘 수 없습니다",
     "promptEmpty": "Prompt는 비워둘 수 없습니다",
     "apiKeyNotSet": "API Key가 설정되지 않았습니다",
+    "openaiApiKeyNotSet": "OpenAI API Key가 설정되지 않았습니다",
+    "anthropicApiKeyNotSet": "Anthropic API Key가 설정되지 않았습니다",
+    "providerAuthFailed": "API Key 인증 실패 ({provider})",
     "enhancementTimeout": "AI 정리 시간 초과",
     "apiKeyMissing": "API Key를 설정해주세요",
     "mic": {
@@ -263,6 +296,7 @@
     },
     "network": "네트워크 연결이 끊어졌습니다",
     "transcription": {
+      "fileTooLarge": "녹음 파일이 너무 큽니다. 녹음 시간을 줄여주세요",
       "invalidAudio": "오디오 형식이 유효하지 않거나 녹음 데이터가 불완전합니다",
       "invalidApiKey": "API Key가 유효하지 않거나 만료되었습니다",
       "rateLimited": "요청이 너무 빈번합니다. 잠시 후 다시 시도하세요",
@@ -305,7 +339,8 @@
       "dashboard": "대시보드",
       "history": "기록",
       "dictionary": "사용자 사전",
-      "settings": "설정"
+      "settings": "설정",
+      "guide": "기능 안내"
     },
     "update": {
       "installFailed": "설치 실패, 수동으로 업데이트를 다운로드해주세요",
@@ -330,12 +365,53 @@
     },
     "upgradeNotice": {
       "title": "SayIt 업데이트 요약",
-      "item1": "1. 마이크 선택 기능: 설정에서 녹음에 사용할 입력 장치를 지정 가능",
-      "item2": "2. 작은 목소리 오탐 개선: peak energy 이스케이프 메커니즘으로 오보 감소",
-      "item3": "3. AI 정리 안정성 향상: 무작위성 감소, 비정상 결과 자동 재시도",
-      "item4": "4. AI 정리 어조 유지: 의문문이 더 이상 평서문으로 바뀌지 않음",
-      "item5": "5. 마이크 오류 메시지 개선: 장치 미감지, 사용 중 등을 정확히 표시",
+      "item1": "LLM 선택지 추가: Google Gemini(무료 할당량), OpenAI(추천), Anthropic 추가. Groq 무료 모델이 부족하다면 설정에서 Provider를 전환해보세요, 체감이 확 달라집니다",
+      "item2": "선택 텍스트 편집: 텍스트를 선택한 후 SayIt을 실행하면 음성이 지시가 됩니다. \"영어로 번역해\" 또는 \"더 격식 있게\"라고 말하면 AI가 직접 처리하여 교체합니다",
+      "item3": "콤보 키 트리거: ⌘+J 같은 조합키로 녹음 시작 — 실수로 눌릴 걱정 없음",
+      "item4": "빠른 모드 전환: 더블탭 또는 길게 눌러 설정 없이 간결과 적극 모드 전환",
+      "item5": "마이크 선택기 개선: 기본 장치 이름과 볼륨 미리보기 바 표시",
+      "item6": "녹음 중 모드 확인: 노치에 현재 음성 모드가 표시됩니다",
+      "item7": "전환 확인 표시: 모드 전환 시 화면 상단에 새 모드 이름이 표시됩니다",
+      "item8": "토글 모드 붙여넣기 수정: 특정 상황에서 텍스트가 두 번 붙여넣기되는 문제 해결",
+      "item9": "사용 안내: 현재 짧은 구술의 빠른 텍스트 변환용으로 설계되었습니다. 긴 회의 녹음은 아직 지원되지 않지만, 향후 업데이트에서 지원할 예정입니다",
       "dismiss": "확인"
+    }
+  },
+  "featureGuide": {
+    "subtitle": "SayIt에서 사용할 수 있는 모든 기능을 소개합니다.",
+    "voiceInput": {
+      "title": "음성 입력",
+      "description": "타이핑이 귀찮으세요? 그냥 말하세요. 핫키를 누르고 말한 뒤 놓으면 AI가 자동으로 정리해서 커서 위치에 붙여넣습니다. 메시지, 메모, 이메일 뭐든 가능합니다.",
+      "steps": "사용법: 핫키 누르기 → 말하기 → 놓기 → 텍스트 자동 붙여넣기"
+    },
+    "editSelection": {
+      "title": "선택 텍스트 편집",
+      "description": "번역하고 싶은 문장이 있나요? 선택하고 핫키를 누른 다음 \"한국어로 번역해\"라고 말하면 됩니다. \"더 격식 있게\" \"한 문장으로 줄여줘\" 같은 것도 가능합니다. AI가 편집해서 바로 돌려놓습니다.",
+      "steps": "사용법: 텍스트 선택 → 핫키 → 어떻게 바꿀지 말하기 → 편집된 텍스트가 원래 자리로"
+    },
+    "hotkey": {
+      "title": "핫키 설정",
+      "description": "실수로 누를까 걱정되나요? ⌘+J 같은 조합 키로 설정하면 두 키를 동시에 눌러야 작동합니다. 단일 키도 OK. 설정에서 언제든 변경 가능합니다."
+    },
+    "triggerMode": {
+      "title": "트리거 모드",
+      "description": "두 가지 스타일: \"누르고 말하기\"는 무전기처럼 누르고 있는 동안만 녹음. \"탭해서 시작\"은 긴 말에 적합 — 한 번 누르면 시작, 다시 누르면 정지."
+    },
+    "quickModeSwitch": {
+      "title": "빠른 모드 전환",
+      "description": "AI가 텍스트를 너무 많이 또는 적게 수정하나요? 핫키를 더블탭하면 간결과 적극 모드를 바로 전환할 수 있습니다. 화면에 확인이 뜨니 설정을 열 필요 없습니다."
+    },
+    "promptMode": {
+      "title": "AI 처리 모드",
+      "description": "\"간결\"은 오타 수정과 문장 부호만 — 원래 말을 거의 그대로 유지합니다. \"적극\"은 레이아웃도 정리해서 더 읽기 쉽게. 더 원하는 대로? \"커스텀\"으로 AI에게 직접 지시를 작성하세요."
+    },
+    "dictionary": {
+      "title": "커스텀 사전",
+      "description": "고유 명사, 브랜드 이름 등을 추가하면 AI가 올바른 표기를 우선 사용합니다. 스마트 학습을 활성화하면 수정에서 자동으로 새 단어를 수집합니다."
+    },
+    "history": {
+      "title": "기록",
+      "description": "모든 텍스트 변환 결과가 저장됩니다. 검색, 텍스트 복사, 삭제, 녹음 재생이 가능합니다."
     }
   }
 }

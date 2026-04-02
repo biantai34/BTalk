@@ -97,6 +97,15 @@ describe("getTranscriptionErrorMessage", () => {
     );
   });
 
+  it("[P0] Audio file too large 應映射為錄音檔案過大", () => {
+    const error = new Error(
+      "Audio file too large (35.2 MB, limit 25 MB). Please shorten your recording.",
+    );
+    expect(getTranscriptionErrorMessage(error)).toBe(
+      "錄音檔案過大，請縮短錄音時間",
+    );
+  });
+
   it("[P0] Groq API error 包含 network 字眼時不應被誤判為網路錯誤", () => {
     expect(
       getTranscriptionErrorMessage(

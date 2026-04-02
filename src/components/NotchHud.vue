@@ -23,13 +23,17 @@ type VisualMode =
   | "error"
   | "cancelled"
   | "collapsing"
-  | "learned";
+  | "learned"
+  | "mode-switch";
 
 const props = defineProps<{
   status: HudStatus;
   recordingElapsedSeconds: number;
   message: string;
   canRetry: boolean;
+  promptModeLabel: string;
+  modeSwitchLabel: string;
+  isEditMode: boolean;
 }>();
 
 defineEmits<{
@@ -63,7 +67,7 @@ interface NotchShapeParams {
 }
 
 const DEFAULT_NOTCH_SHAPE: NotchShapeParams = {
-  width: 350,
+  width: 420,
   height: 42,
   topRadius: 14,
   bottomRadius: 22,
@@ -71,6 +75,7 @@ const DEFAULT_NOTCH_SHAPE: NotchShapeParams = {
 
 const NOTCH_SHAPE_OVERRIDES: Partial<Record<VisualMode, NotchShapeParams>> = {
   collapsing: { width: 200, height: 32, topRadius: 10, bottomRadius: 16 },
+  "mode-switch": { width: 350, height: 36, topRadius: 12, bottomRadius: 18 },
 };
 
 function buildNotchPath(p: NotchShapeParams): string {
@@ -231,6 +236,36 @@ function handleVocabularyLearned(payload: VocabularyLearnedPayload) {
   showLearnedNotification(payload.termList);
 }
 
+let modeSwitchTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearModeSwitchTimer() {
+  if (modeSwitchTimer) {
+    clearTimeout(modeSwitchTimer);
+    modeSwitchTimer = null;
+  }
+}
+
+watch(
+  () => props.modeSwitchLabel,
+  (label) => {
+    if (!label) {
+      // Label cleared → trigger collapsing animation
+      if (visualMode.value === "mode-switch") {
+        visualMode.value = "collapsing";
+        collapsingTimer = setTimeout(() => {
+          visualMode.value = "hidden";
+          processNextLearnedNotification();
+        }, COLLAPSE_ANIMATION_DURATION_MS);
+      }
+      return;
+    }
+    // Label set → show mode-switch visual
+    clearModeSwitchTimer();
+    clearCollapsingTimer();
+    visualMode.value = "mode-switch";
+  },
+);
+
 watch(
   () => props.status,
   (nextStatus) => {
@@ -241,6 +276,7 @@ watch(
     if (nextStatus === "idle") {
       stopWaveformAnimation();
       if (visualMode.value === "learned") return;
+      if (visualMode.value === "mode-switch") return;
       if (visualMode.value === "hidden") {
         processNextLearnedNotification();
         return;
@@ -259,7 +295,11 @@ watch(
       return;
     }
 
-    if (nextStatus === "transcribing" || nextStatus === "enhancing") {
+    if (
+      nextStatus === "transcribing" ||
+      nextStatus === "enhancing" ||
+      nextStatus === "editing"
+    ) {
       stopWaveformAnimation();
       if (
         visualMode.value === "recording" ||
@@ -309,6 +349,7 @@ onUnmounted(() => {
   clearMorphingTimer();
   clearCollapsingTimer();
   clearLearnedTimer();
+  clearModeSwitchTimer();
   stopWaveformAnimation();
   unlistenVocabularyLearned?.();
 });
@@ -401,9 +442,16 @@ onUnmounted(() => {
           <span v-else-if="visualMode === 'learned'" class="learned-label">
             {{ $t('voiceFlow.vocabularyLearnedLabel') }}
           </span>
-          <span v-else-if="visualMode === 'recording'" class="elapsed-timer">
-            {{ formattedElapsedTime }}
+          <span v-else-if="visualMode === 'mode-switch'" class="mode-switch-label">
+            {{ props.modeSwitchLabel }}
           </span>
+          <template v-else-if="visualMode === 'recording'">
+            <span v-if="props.isEditMode" class="hud-badge edit-mode-badge">{{ t('voiceFlow.editMode') }}</span>
+            <span v-else-if="props.promptModeLabel" class="hud-badge prompt-mode-badge">{{ props.promptModeLabel }}</span>
+            <span class="elapsed-timer">
+              {{ formattedElapsedTime }}
+            </span>
+          </template>
           <span
             v-else-if="visualMode === 'error' && canRetry"
             class="retry-icon"
@@ -689,6 +737,31 @@ onUnmounted(() => {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ---- Mode Switch ---- */
+.mode-switch-label {
+  color: rgba(167, 139, 250, 0.95);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: modeSwitchFadeIn 0.3s ease-out;
+}
+
+@keyframes modeSwitchFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- HUD Badge (shared base) ---- */
+.hud-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+.prompt-mode-badge { background: rgba(255, 255, 255, 0.15); color: rgba(255, 255, 255, 0.7); }
+.edit-mode-badge   { background: rgba(251, 191, 36, 0.25);  color: rgba(251, 191, 36, 0.9); }
 
 /* ---- Error: scatter + shake ---- */
 .waveform-scatter {

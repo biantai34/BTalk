@@ -22,7 +22,7 @@ describe("hallucinationDetector.ts", () => {
     it("[P0] 常數應符合設計規格", () => {
       expect(SPEED_ANOMALY_MAX_DURATION_MS).toBe(1000);
       expect(SPEED_ANOMALY_MIN_CHARS).toBe(10);
-      expect(SILENCE_PEAK_ENERGY_THRESHOLD).toBe(0.02);
+      expect(SILENCE_PEAK_ENERGY_THRESHOLD).toBe(0.01);
       expect(SILENCE_RMS_THRESHOLD).toBe(0.015);
       expect(SILENCE_NSP_THRESHOLD).toBe(0.7);
       expect(LAYER2B_PEAK_ENERGY_CEILING).toBe(0.03);

@@ -3,6 +3,24 @@
 > Tauri v2 + Vue 3 + Rust 語音轉文字桌面應用（fork of SayIt by Jackle Chen）
 > 完整規則請讀：`_bmad-output/project-context.md`（261 條）
 
+## 目前開發狀態
+
+- **版本**: 0.8.7（品牌化全部完成：改名、圖標、README、Release v0.8.7）
+- **GitHub**: biantai34/BTalk
+- **下一步**: 複數鍵功能（Cmd + 自訂鍵觸發）
+
+### 複數鍵功能（未完成，目前編譯失敗）
+
+✅ 已完成：
+- `src/types/settings.ts` — ComboTriggerKey 介面定義
+- `src-tauri/src/plugins/hotkey_listener.rs` — Rust Combo 變體
+
+❌ 待完成：
+- `src/views/SettingsView.vue` — 新增 Cmd 選項 + 按鍵錄製 UI
+- `src/stores/useSettingsStore.ts:391-424` — `getTriggerKeyDisplayName()` 需完善
+
+---
+
 ## Quick Reference
 
 | 文件 | 路徑 | 用途 |
@@ -45,19 +63,26 @@
 | Command | Rust 位置 | 前端呼叫點 | 參數 | 回傳 |
 |---------|-----------|-----------|------|------|
 | `debug_log` | `lib.rs` | stores, main-window.ts | `level: String, message: String` | `()` |
+| `request_app_restart` | `lib.rs` | main-window.ts | — | `()` |
 | `update_hotkey_config` | `lib.rs` | useSettingsStore | `trigger_key: TriggerKey, trigger_mode: TriggerMode` | `Result<(), String>` |
 | `get_hud_target_position` | `lib.rs` | — | `app: AppHandle` | `Result<HudTargetPosition, String>` |
 | `paste_text` | `plugins/clipboard_paste.rs` | useVoiceFlowStore | `text: String` | `Result<(), ClipboardError>` |
 | `copy_to_clipboard` | `plugins/clipboard_paste.rs` | HistoryView | `text: String` | `Result<(), ClipboardError>` |
+| `capture_target_window` | `plugins/clipboard_paste.rs` | useVoiceFlowStore | — | `()` |
 | `check_accessibility_permission_command` | `plugins/hotkey_listener.rs` | AccessibilityGuide.vue | — | `bool` |
 | `open_accessibility_settings` | `plugins/hotkey_listener.rs` | AccessibilityGuide.vue | — | `Result<(), String>` |
 | `reinitialize_hotkey_listener` | `plugins/hotkey_listener.rs` | AccessibilityGuide.vue | `app: AppHandle` | `Result<(), String>` |
+| `reset_hotkey_state` | `plugins/hotkey_listener.rs` | useVoiceFlowStore | `state: State<HotkeyListenerState>` | `()` |
 | `start_quality_monitor` | `plugins/keyboard_monitor.rs` | useVoiceFlowStore | `app: AppHandle` | `()` |
 | `start_correction_monitor` | `plugins/keyboard_monitor.rs` | useVoiceFlowStore | `app: AppHandle` | `()` |
 | `read_focused_text_field` | `plugins/text_field_reader.rs` | useVoiceFlowStore | — | `Result<Option<String>, String>` |
+| `read_selected_text` | `plugins/text_field_reader.rs` | useVoiceFlowStore | — | `Result<Option<String>, String>` |
 | `mute_system_audio` | `plugins/audio_control.rs` | useVoiceFlowStore | `state: State<AudioControlState>` | `Result<(), String>` |
 | `restore_system_audio` | `plugins/audio_control.rs` | useVoiceFlowStore | `state: State<AudioControlState>` | `Result<(), String>` |
+| `get_default_input_device_name` | `plugins/audio_recorder.rs` | SettingsView | — | `Option<String>` |
 | `list_audio_input_devices` | `plugins/audio_recorder.rs` | SettingsView | — | `Vec<AudioInputDeviceInfo>` |
+| `start_audio_preview` | `plugins/audio_recorder.rs` | SettingsView | `app: AppHandle, preview_state: State<AudioPreviewState>, device_name: String` | `Result<(), String>` |
+| `stop_audio_preview` | `plugins/audio_recorder.rs` | SettingsView | `preview_state: State<AudioPreviewState>` | `()` |
 | `start_recording` | `plugins/audio_recorder.rs` | useVoiceFlowStore | `app: AppHandle, state: State<AudioRecorderState>, device_name: String` | `Result<(), AudioRecorderError>` |
 | `stop_recording` | `plugins/audio_recorder.rs` | useVoiceFlowStore | `state: State<AudioRecorderState>` | `Result<StopRecordingResult, AudioRecorderError>` |
 | `save_recording_file` | `plugins/audio_recorder.rs` | useVoiceFlowStore | `id: String, app: AppHandle, state: State<AudioRecorderState>` | `Result<String, String>` |
@@ -70,6 +95,8 @@
 | `play_stop_sound` | `plugins/sound_feedback.rs` | useVoiceFlowStore | — | `()` |
 | `play_error_sound` | `plugins/sound_feedback.rs` | useVoiceFlowStore | — | `()` |
 | `play_learned_sound` | `plugins/sound_feedback.rs` | NotchHud.vue | — | `()` |
+| `start_hotkey_recording` | `plugins/hotkey_listener.rs` | SettingsView | `state: State<HotkeyListenerState>` | `()` |
+| `cancel_hotkey_recording` | `plugins/hotkey_listener.rs` | SettingsView | `state: State<HotkeyListenerState>` | `()` |
 
 ### Rust → Frontend Events
 
@@ -79,9 +106,14 @@
 | `hotkey:released` | hotkey_listener.rs | `HOTKEY_RELEASED` | — |
 | `hotkey:toggled` | hotkey_listener.rs | `HOTKEY_TOGGLED` | `HotkeyEventPayload` |
 | `hotkey:error` | hotkey_listener.rs | `HOTKEY_ERROR` | `HotkeyErrorPayload` |
+| `hotkey:mode-toggle` | hotkey_listener.rs | `HOTKEY_MODE_TOGGLE` | `()` |
+| `escape:pressed` | hotkey_listener.rs | `ESCAPE_PRESSED` | `()` |
+| `hotkey:recording-captured` | hotkey_listener.rs | `HOTKEY_RECORDING_CAPTURED` | `RecordingCapturedPayload` |
+| `hotkey:recording-rejected` | hotkey_listener.rs | `HOTKEY_RECORDING_REJECTED` | `RecordingRejectedPayload` |
 | `quality-monitor:result` | keyboard_monitor.rs | `QUALITY_MONITOR_RESULT` | `QualityMonitorResultPayload` |
 | `correction-monitor:result` | keyboard_monitor.rs | `CORRECTION_MONITOR_RESULT` | `CorrectionMonitorResultPayload` |
 | `audio:waveform` | audio_recorder.rs | `AUDIO_WAVEFORM` | `WaveformPayload { levels: [f32; 6] }` |
+| `audio:preview-level` | audio_recorder.rs | `AUDIO_PREVIEW_LEVEL` | `AudioPreviewLevelPayload { level: f32 }` |
 
 ### Frontend-only Events（不經 Rust）
 
@@ -105,7 +137,7 @@
 ```
   views/ ──→ components/ + stores/ + composables/
   stores/ ──→ lib/
-  lib/ ──→ External APIs (Groq)
+  lib/ ──→ External APIs (Groq / OpenAI / Anthropic)
 
   ❌ views/ 不可直接 import lib/
   ❌ 元件不可直接執行 SQL
@@ -121,6 +153,7 @@
 6. **❌ `@tabler/icons-vue`** → 只用 `lucide-vue-next`
 7. **❌ 手寫 UI 元件** → 用 shadcn-vue（new-york style），詳見下方「shadcn-vue 元件使用規則」
 8. **❌ 直接 import Tauri event API** → 用 `useTauriEvents.ts` 封裝
+9. **❌ 未經設計直接實作 UI** → 先用 Pencil MCP 完成 `design.pen` 設計稿，再寫程式碼
 
 ## shadcn-vue 元件使用規則
 
@@ -172,12 +205,27 @@
 - 主鍵：`TEXT`（UUID，前端 `crypto.randomUUID()`）
 - 參數語法：`$1, $2`（tauri-plugin-sql）
 
-## 保護檔案（Hooks 自動攔截）
+## 自動化 Hooks（`.claude/settings.json`）
+
+| Hook | 觸發時機 | 行為 |
+|------|---------|------|
+| `protect-config.sh` | PreToolUse（Edit\|Write） | 🔴 攔截 lock 檔修改、🟡 警告 config 檔修改 |
+| `typecheck.sh` | PostToolUse（Edit\|Write） | 編輯 .ts/.vue 後自動跑 `vue-tsc --noEmit`（非阻斷，僅報告錯誤） |
+| `rustfmt.sh` | PostToolUse（Edit\|Write） | 編輯 .rs 後自動執行 `rustfmt`（非阻斷） |
+| `eslint.sh` | PostToolUse（Edit\|Write） | 編輯 .ts/.vue 後自動 `eslint --fix`（跳過 `components/ui/`） |
+
+### 保護檔案
 
 | 檔案 | 保護等級 |
 |------|---------|
 | `Cargo.lock`, `pnpm-lock.yaml` | 🔴 Hard block（禁止修改） |
 | `tauri.conf.json`, `Cargo.toml` | 🟡 警告（需確認必要性） |
+
+## 開發環境需求
+
+- **Node.js 24**（見 `.nvmrc`）
+- **pnpm 10.28.2**（`corepack enable && corepack prepare`）
+- **Rust stable**（`rustup default stable`）
 
 ## 常用指令
 

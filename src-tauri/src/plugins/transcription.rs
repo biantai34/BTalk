@@ -9,8 +9,10 @@ use super::audio_recorder::AudioRecorderState;
 const GROQ_API_URL: &str = "https://api.groq.com/openai/v1/audio/transcriptions";
 const MAX_WHISPER_PROMPT_TERMS: usize = 50;
 const MINIMUM_AUDIO_SIZE: usize = 1000;
+/// Groq free tier 上限 25MB
+const MAX_AUDIO_FILE_SIZE: usize = 25 * 1024 * 1024;
 const DEFAULT_WHISPER_MODEL_ID: &str = "whisper-large-v3";
-const REQUEST_TIMEOUT_SECS: u64 = 30;
+const REQUEST_TIMEOUT_SECS: u64 = 120;
 
 // ========== State ==========
 
@@ -36,6 +38,8 @@ pub enum TranscriptionError {
     NoAudioData,
     #[error("Audio data too small ({0} bytes), recording may have failed")]
     AudioTooSmall(usize),
+    #[error("Audio file too large ({size_mb:.1} MB, limit {limit_mb} MB). Please shorten your recording.")]
+    FileTooLarge { size_mb: f64, limit_mb: usize },
     #[error("API key is missing")]
     ApiKeyMissing,
     #[error("Groq API request failed: {0}")]
@@ -103,6 +107,12 @@ async fn send_transcription_request(
 ) -> Result<TranscriptionResult, TranscriptionError> {
     if wav_data.len() < MINIMUM_AUDIO_SIZE {
         return Err(TranscriptionError::AudioTooSmall(wav_data.len()));
+    }
+
+    if wav_data.len() > MAX_AUDIO_FILE_SIZE {
+        let size_mb = wav_data.len() as f64 / (1024.0 * 1024.0);
+        let limit_mb = MAX_AUDIO_FILE_SIZE / (1024 * 1024);
+        return Err(TranscriptionError::FileTooLarge { size_mb, limit_mb });
     }
 
     let model = model_id.unwrap_or_else(|| DEFAULT_WHISPER_MODEL_ID.to_string());

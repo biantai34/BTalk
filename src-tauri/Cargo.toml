@@ -1,6 +1,6 @@
 [package]
 name = "sayit"
-version = "0.9.0"
+version = "0.9.3"
 edition = "2021"
 
 [lib]
@@ -42,6 +42,7 @@ windows = { version = "0.61", features = [
     "Win32_Media_Audio",
     "Win32_Media_Audio_Endpoints",
     "Win32_System_Com",
+    "Win32_System_Threading",
 ] }
 
 [profile.dev]

@@ -43,6 +43,11 @@ const historyStore = useHistoryStore();
 const settingsStore = useSettingsStore();
 const router = useRouter();
 
+const isPaidLlmProvider = computed(() => {
+  const lConfig = findLlmModelConfig(settingsStore.selectedLlmModelId);
+  return (lConfig?.freeQuotaRpd ?? 0) === 0;
+});
+
 const quotaDimensionList = computed(() => {
   const usage = historyStore.dashboardStats.dailyQuotaUsage;
   const wConfig = findWhisperModelConfig(settingsStore.selectedWhisperModelId);
@@ -50,10 +55,8 @@ const quotaDimensionList = computed(() => {
 
   const wRpdLimit = wConfig?.freeQuotaRpd ?? 2000;
   const wAudioLimitMs = (wConfig?.freeQuotaAudioSecondsPerDay ?? 28800) * 1000;
-  const lRpdLimit = lConfig?.freeQuotaRpd ?? 1000;
-  const lTpdLimit = lConfig?.freeQuotaTpd ?? 100_000;
 
-  return [
+  const dimensionList = [
     {
       remaining: wRpdLimit > 0 ? 1 - usage.whisperRequestCount / wRpdLimit : 0,
       label: t("dashboard.quotaWhisperRequests", { used: usage.whisperRequestCount, limit: formatNumber(wRpdLimit) }),
@@ -62,15 +65,25 @@ const quotaDimensionList = computed(() => {
       remaining: wAudioLimitMs > 0 ? 1 - usage.whisperBilledAudioMs / wAudioLimitMs : 0,
       label: t("dashboard.quotaAudio", { used: formatDurationFromMs(usage.whisperBilledAudioMs), limit: formatDurationFromMs(wAudioLimitMs) }),
     },
-    {
-      remaining: lRpdLimit > 0 ? 1 - usage.llmRequestCount / lRpdLimit : 0,
-      label: t("dashboard.quotaLlmRequests", { used: usage.llmRequestCount, limit: formatNumber(lRpdLimit) }),
-    },
-    {
-      remaining: lTpdLimit > 0 ? 1 - usage.llmTotalTokens / lTpdLimit : 0,
-      label: t("dashboard.quotaLlmTokens", { used: formatNumber(usage.llmTotalTokens), limit: formatNumber(lTpdLimit) }),
-    },
   ];
+
+  // 付費 provider 無免費額度，不顯示 LLM 額度進度條
+  if (!isPaidLlmProvider.value) {
+    const lRpdLimit = lConfig?.freeQuotaRpd ?? 1000;
+    const lTpdLimit = lConfig?.freeQuotaTpd ?? 100_000;
+    dimensionList.push(
+      {
+        remaining: lRpdLimit > 0 ? 1 - usage.llmRequestCount / lRpdLimit : 0,
+        label: t("dashboard.quotaLlmRequests", { used: usage.llmRequestCount, limit: formatNumber(lRpdLimit) }),
+      },
+      {
+        remaining: lTpdLimit > 0 ? 1 - usage.llmTotalTokens / lTpdLimit : 0,
+        label: t("dashboard.quotaLlmTokens", { used: formatNumber(usage.llmTotalTokens), limit: formatNumber(lTpdLimit) }),
+      },
+    );
+  }
+
+  return dimensionList;
 });
 
 const quotaRemainingPercent = computed(() => {

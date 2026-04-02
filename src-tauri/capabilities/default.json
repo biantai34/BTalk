@@ -25,6 +25,15 @@
       "allow": [
         {
           "url": "https://api.groq.com/*"
+        },
+        {
+          "url": "https://api.openai.com/*"
+        },
+        {
+          "url": "https://api.anthropic.com/*"
+        },
+        {
+          "url": "https://generativelanguage.googleapis.com/*"
         }
       ]
     },

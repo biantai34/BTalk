@@ -35,6 +35,8 @@ function createTestRecord(
     createdAt: "",
     audioFilePath: null,
     status: "success",
+    isEditMode: false,
+    editSourceText: null,
     ...overrides,
   };
 }
@@ -55,6 +57,8 @@ function createRawRow(overrides: Record<string, unknown> = {}) {
     created_at: "2026-01-01 00:00:00",
     audio_file_path: null,
     status: "success",
+    is_edit_mode: 0,
+    edit_source_text: null,
     ...overrides,
   };
 }
@@ -102,6 +106,8 @@ describe("useHistoryStore", () => {
         null, // wasModified: null → null
         null, // audioFilePath
         "success", // status
+        0, // isEditMode: false → 0
+        null, // editSourceText
       ]);
     });
 

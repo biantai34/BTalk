@@ -27,7 +27,7 @@ const i18n = createI18n({
 
 function mountNotchHud(props: Record<string, unknown>) {
   return mount(NotchHud, {
-    props,
+    props: { isEditMode: false, ...props },
     global: {
       plugins: [i18n],
     },

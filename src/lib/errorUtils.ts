@@ -55,6 +55,10 @@ export function getTranscriptionErrorMessage(error: unknown): string {
       return t("errors.network");
     }
 
+    if (error.message.includes("Audio file too large")) {
+      return t("errors.transcription.fileTooLarge");
+    }
+
     if (error.message.includes("Groq API error")) {
       const statusMatch = error.message.match(/\((\d+)\)/);
       if (statusMatch) {

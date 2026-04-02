@@ -31,6 +31,9 @@
       "modeUpdated": "觸發模式已更新",
       "keySet": "觸發鍵已設為 {key}",
       "customKeyDisplay": "自訂鍵 ({keycode})",
+      "doubleTapHint": "長按模式下，快速按兩下觸發鍵可切換語音模式",
+      "longPressHint": "切換模式下，長按觸發鍵超過一秒可切換語音模式",
+      "comboKey": "組合鍵",
       "keys": {
         "fn": "Fn",
         "leftOption": "左 Option (⌥)",
@@ -45,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key（語音轉錄 + Groq LLM）",
       "set": "已設定",
       "notSet": "未設定",
       "goToConsole": "前往 Groq Console",
-      "instruction": "請在 Groq Console 產生 API Key 後貼上。",
+      "instruction": "此 Key 用於語音轉錄（Whisper）。若 LLM Provider 選擇 Groq，也會用於文字整理。",
       "onboarding": "歡迎使用 SayIt！請先設定 Groq API Key 以啟用語音輸入功能。",
       "show": "顯示",
       "hide": "隱藏",
@@ -57,6 +60,26 @@
       "deleted": "API Key 已刪除",
       "confirmDelete": "確認刪除？",
       "delete": "刪除 API Key"
+    },
+    "provider": {
+      "title": "LLM 模型服務",
+      "description": "選擇文字整理和字典分析使用的 AI 服務。Groq 和 Gemini 提供免費額度，OpenAI 和 Anthropic 為付費服務。",
+      "groq": "Groq（免費）",
+      "openai": "OpenAI（推薦）",
+      "anthropic": "Anthropic",
+      "gemini": "Google Gemini（免費額度）",
+      "groqNote": "使用上方 Groq API Key"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "前往 OpenAI Platform 取得 API Key",
+      "anthropicInstruction": "前往 Anthropic Console 取得 API Key",
+      "goToOpenai": "前往 OpenAI Platform",
+      "goToAnthropic": "前往 Anthropic Console",
+      "geminiTitle": "Gemini API Key",
+      "geminiInstruction": "前往 Google AI Studio 取得 API Key（有免費額度）",
+      "goToGemini": "前往 Google AI Studio"
     },
     "model": {
       "title": "模型選擇",
@@ -72,7 +95,8 @@
       "balanced": "平衡 · 預設",
       "stableCostly": "穩定可靠 · 成本高",
       "fastCheap": "最快 · 最便宜",
-      "smartestSlow": "最聰明 · 較慢"
+      "smartestSlow": "最聰明 · 較慢",
+      "premium": "高品質"
     },
     "prompt": {
       "title": "AI 整理 Prompt",
@@ -125,6 +149,8 @@
       "description": "選擇錄音使用的麥克風",
       "deviceLabel": "麥克風",
       "systemDefault": "系統預設",
+      "systemDefaultWithDevice": "系統預設（{device}）",
+      "volumePreview": "麥克風音量預覽",
       "refresh": "重新整理",
       "refreshed": "已偵測到 {count} 個裝置",
       "updated": "輸入裝置已更新"
@@ -148,8 +174,6 @@
       "title": "智慧字典學習",
       "description": "轉錄貼上後自動偵測修正，透過 AI 分析學習新詞彙",
       "privacyNote": "啟用後，系統會讀取游標附近的文字用於 AI 分析，不儲存原文",
-      "analysisModelLabel": "字典分析模型",
-      "analysisModelDescription": "用於判斷修正詞彙是否應加入字典的 AI 模型（獨立於文字整理模型）",
       "analysisModelUpdated": "字典分析模型已更新"
     }
   },
@@ -240,18 +264,27 @@
     "pasteSuccessUnenhanced": "已貼上（未整理）",
     "enhancing": "整理中...",
     "pasteFailed": "貼上失敗",
+    "editMode": "編輯",
+    "editing": "編輯中...",
+    "editSuccess": "已編輯 ✓",
+    "editFailed": "編輯失敗",
     "recordingTooShort": "錄音時間太短",
     "vocabularyLearnedLabel": "新增字典",
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 等 {count} 個",
     "retryFailed": "辨識失敗，請重新錄音",
-    "cancelled": "已取消"
+    "cancelled": "已取消",
+    "modeSwitched": "已切換至{mode}模式",
+    "commandMode": "指令"
   },
   "errors": {
     "databaseInitFailed": "資料庫初始化失敗，歷史記錄暫時無法使用。請重新啟動應用程式。",
     "apiKeyEmpty": "API Key 不可為空白",
     "promptEmpty": "Prompt 不可為空白",
     "apiKeyNotSet": "API Key 未設定",
+    "openaiApiKeyNotSet": "OpenAI API Key 未設定",
+    "anthropicApiKeyNotSet": "Anthropic API Key 未設定",
+    "providerAuthFailed": "API Key 驗證失敗（{provider}）",
     "enhancementTimeout": "AI 整理逾時",
     "apiKeyMissing": "請設定 API Key",
     "mic": {
@@ -263,6 +296,7 @@
     },
     "network": "網路連線中斷",
     "transcription": {
+      "fileTooLarge": "錄音檔案過大，請縮短錄音時間",
       "invalidAudio": "音檔格式無效或錄音資料不完整",
       "invalidApiKey": "API Key 無效或已過期",
       "rateLimited": "請求過於頻繁，稍後再試",
@@ -305,7 +339,8 @@
       "dashboard": "儀表板",
       "history": "歷史記錄",
       "dictionary": "自訂字典",
-      "settings": "設定"
+      "settings": "設定",
+      "guide": "功能介紹"
     },
     "update": {
       "installFailed": "安裝失敗，請手動下載更新",
@@ -330,12 +365,53 @@
     },
     "upgradeNotice": {
       "title": "SayIt 更新摘要",
-      "item1": "1. 新增麥克風選擇：可在設定中指定錄音使用的輸入裝置",
-      "item2": "2. 改善小聲說話誤判：新增 peak energy 逃生機制，減少誤報",
-      "item3": "3. AI 整理更穩定：降低隨機性，異常結果自動重試",
-      "item4": "4. AI 整理保留語氣：問句不再被改寫成肯定句",
-      "item5": "5. 改善麥克風錯誤提示：精確顯示裝置未找到、被佔用等原因",
+      "item1": "更多 LLM 選擇：新增 Google Gemini（有免費額度）、OpenAI（推薦）和 Anthropic。Groq 免費模型不夠聰明的話，到設定切換 Provider 試試看，體感會好很多",
+      "item2": "編輯選取文字：先選取文字再觸發 SayIt，語音就變成指令。說「翻譯成英文」或「讓語氣更正式」，AI 會直接改好貼回去",
+      "item3": "組合鍵觸發：用 ⌘+J 這樣的組合鍵啟動錄音，不怕再按錯觸發",
+      "item4": "快速切模式：按兩下或長按觸發鍵，不用進設定就能切換精簡和積極模式",
+      "item5": "麥克風選擇器改善：顯示預設裝置名稱，還有音量預覽條",
+      "item6": "錄音時看得到模式：小視窗會顯示目前用的語音模式",
+      "item7": "切換時螢幕提示：切換成功後上方會顯示新模式名稱",
+      "item8": "Toggle 模式不再重複貼上：修復了特定情境下文字被貼兩次的問題",
+      "item9": "錄音定位：目前專為短口語快速轉錄設計，暫不適合長時間會議錄音。未來會針對長錄音場景持續優化",
       "dismiss": "了解"
+    }
+  },
+  "featureGuide": {
+    "subtitle": "以下是 SayIt 所有可用的操作功能，幫助你快速上手。",
+    "voiceInput": {
+      "title": "語音輸入",
+      "description": "想打字？不用打，直接說。按住快捷鍵說話，放開後 AI 會自動整理好文字，直接貼到你游標的位置。打訊息、寫筆記、回 email 都可以用。",
+      "steps": "操作：按住快捷鍵 → 說話 → 鬆開 → 文字自動貼上"
+    },
+    "editSelection": {
+      "title": "編輯選取文字",
+      "description": "看到一段英文想翻譯？選起來，按快捷鍵，說「翻成中文」，就好了。也可以說「幫我改正式一點」「縮短成一句話」之類的，AI 會直接改好放回去。",
+      "steps": "操作：選取文字 → 按快捷鍵 → 說你想怎麼改 → 改好自動貼回"
+    },
+    "hotkey": {
+      "title": "快捷鍵設定",
+      "description": "怕按錯鍵不小心觸發？可以設成組合鍵，像 ⌘+J 這樣要兩個鍵一起按才會啟動。也可以用單顆鍵，看你習慣。到設定裡就能改。"
+    },
+    "triggerMode": {
+      "title": "觸發模式",
+      "description": "兩種用法：「按住說話」就像對講機，按著才錄，放開就停。「按一下開始」適合講比較長的話，按一次開始錄，再按一次才停。"
+    },
+    "quickModeSwitch": {
+      "title": "快速切換 AI 模式",
+      "description": "覺得 AI 整理太少或太多？不用進設定，連按兩下快捷鍵就能在「精簡」和「積極」之間切換，螢幕上方會告訴你現在是哪個模式。"
+    },
+    "promptMode": {
+      "title": "AI 整理模式",
+      "description": "「精簡」只幫你修錯字加標點，原話不太動。「積極」會順便整理排版，讓文字更好讀。覺得都不夠？用「自訂」寫你自己的指令給 AI。"
+    },
+    "dictionary": {
+      "title": "自訂字典",
+      "description": "手動新增專有名詞、品牌名稱等，AI 整理時會優先採用正確寫法。開啟「智慧學習」後，AI 會自動從你的修正中收錄新詞。"
+    },
+    "history": {
+      "title": "歷史記錄",
+      "description": "所有轉錄結果都會保存，可搜尋、複製文字、刪除記錄，也可以重新播放錄音檔。"
     }
   }
 }

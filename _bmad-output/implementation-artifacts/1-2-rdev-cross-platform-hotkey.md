@@ -194,8 +194,8 @@ Fn/Globe 鍵在 macOS 上的偵測需要多種策略：
 - 較新的 macOS 版本（Ventura+）將 Fn 鍵重新映射為 Globe 鍵（切換輸入法/表情）
 - `fn_key_listener.rs` 已驗證可行的雙重偵測策略：keycode 63 + `CGEventFlagSecondaryFn`
 
-**緩解策略（已在 POC 驗證）：**
-1. `FlagsChanged` 事件：匹配 keycode 63 或 `CGEventFlagSecondaryFn` flag
+**緩解策略（已驗證）：**
+1. `FlagsChanged` 事件：**只回應 keycode 63**，用 `CGEventFlagSecondaryFn` flag 判斷 press/release（不回應非 keycode-63 的 FlagsChanged，避免 Globe 鍵輸入法切換等系統事件誤觸 release）
 2. `KeyDown`/`KeyUp` 事件：匹配 keycode 63 作為 fallback
 3. 若 Fn 完全不可用，建議使用者改用其他修飾鍵
 4. 在設定頁面清楚標示 Fn 鍵可能有相容性問題
@@ -378,7 +378,7 @@ Claude Opus 4.6
 
 - HotkeyListenerState 的 is_pressed/is_toggled_on 改為 Arc<AtomicBool>（原 spec 為 AtomicBool），因需跨線程共享（hook thread ↔ main thread）
 - Windows hook 使用 OnceLock + Box<dyn Fn(bool)> 解決 hook callback 無法攜帶泛型 AppHandle<R> 的問題
-- Fn 鍵保留原 POC 的雙重偵測策略（keycode 63 toggle-based + CGEventFlagSecondaryFn flag-based），確保跨 macOS 版本相容
+- Fn 鍵使用 flag-based 偵測策略：FlagsChanged 只回應 keycode 63 + `CGEventFlagSecondaryFn` 判斷 press/release（原 toggle-based 邏輯已移除，因 Globe 鍵會產生額外 FlagsChanged 事件導致誤觸 release）
 - update_hotkey_config 使用 serde_json 反序列化 camelCase 字串為 TriggerKey/TriggerMode enum
 - 前端 TriggerKey 使用 union type 而非 TypeScript enum，保持與 Rust serde(rename_all = "camelCase") 一致
 

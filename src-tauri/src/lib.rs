@@ -111,8 +111,8 @@ fn update_hotkey_config(
     Ok(())
 }
 
-/// HUD 視窗邏輯寬度（pixels），對應前端 CSS 400px
-const HUD_WINDOW_WIDTH_LOGICAL: f64 = 400.0;
+/// HUD 視窗邏輯寬度（pixels），對應前端 CSS 470px
+const HUD_WINDOW_WIDTH_LOGICAL: f64 = 470.0;
 
 /// macOS: 取得滑鼠游標座標（logical points，原點在主螢幕左上角）
 #[cfg(target_os = "macos")]
@@ -417,16 +417,23 @@ pub fn run() {
             get_hud_target_position,
             plugins::audio_control::mute_system_audio,
             plugins::audio_control::restore_system_audio,
+            plugins::clipboard_paste::capture_target_window,
             plugins::clipboard_paste::copy_to_clipboard,
             plugins::clipboard_paste::paste_text,
             plugins::hotkey_listener::check_accessibility_permission_command,
             plugins::hotkey_listener::open_accessibility_settings,
             plugins::hotkey_listener::reinitialize_hotkey_listener,
             plugins::hotkey_listener::reset_hotkey_state,
+            plugins::hotkey_listener::start_hotkey_recording,
+            plugins::hotkey_listener::cancel_hotkey_recording,
             plugins::keyboard_monitor::start_quality_monitor,
             plugins::keyboard_monitor::start_correction_monitor,
             plugins::text_field_reader::read_focused_text_field,
+            plugins::text_field_reader::read_selected_text,
+            plugins::audio_recorder::get_default_input_device_name,
             plugins::audio_recorder::list_audio_input_devices,
+            plugins::audio_recorder::start_audio_preview,
+            plugins::audio_recorder::stop_audio_preview,
             plugins::audio_recorder::start_recording,
             plugins::audio_recorder::stop_recording,
             plugins::audio_recorder::save_recording_file,
@@ -445,8 +452,12 @@ pub fn run() {
             app.manage(plugins::keyboard_monitor::KeyboardMonitorState::new());
             // 初始化 audio control 狀態
             app.manage(plugins::audio_control::AudioControlState::new());
+            // 初始化 clipboard focus 狀態（Windows 貼上前恢復焦點）
+            app.manage(plugins::clipboard_paste::FocusState::new());
             // 初始化 audio recorder 狀態
             app.manage(plugins::audio_recorder::AudioRecorderState::new());
+            // 初始化 audio preview 狀態（音量預覽）
+            app.manage(plugins::audio_recorder::AudioPreviewState::new());
             // 初始化 transcription 狀態（共用 HTTP client）
             app.manage(plugins::transcription::TranscriptionState::new());
 
@@ -519,27 +530,31 @@ pub fn run() {
                     if let Some(state) = app_handle.try_state::<plugins::audio_control::AudioControlState>() {
                         state.shutdown();
                     }
-                    // 2. 停止 cpal 錄音（join thread, drop AudioUnit）
+                    // 2. 停止音量預覽（在 cpal 錄音之前，避免兩者同時釋放裝置）
+                    if let Some(state) = app_handle.try_state::<plugins::audio_recorder::AudioPreviewState>() {
+                        state.shutdown();
+                    }
+                    // 3. 停止 cpal 錄音（join thread, drop AudioUnit）
                     if let Some(state) = app_handle.try_state::<plugins::audio_recorder::AudioRecorderState>() {
                         state.shutdown();
                     }
-                    // 3. 取消 keyboard monitor CGEventTap
+                    // 4. 取消 keyboard monitor CGEventTap
                     if let Some(state) = app_handle.try_state::<plugins::keyboard_monitor::KeyboardMonitorState>() {
                         state.shutdown();
                     }
-                    // 4. 停止 hotkey listener CGEventTap
+                    // 5. 停止 hotkey listener CGEventTap
                     if let Some(state) = app_handle.try_state::<plugins::hotkey_listener::HotkeyListenerState>() {
                         state.shutdown();
                     }
-                    // 5. 等待背景 thread 完成清理
+                    // 6. 等待背景 thread 完成清理
                     std::thread::sleep(std::time::Duration::from_millis(200));
 
-                    // 6. Flush Sentry 事件佇列（確保 shutdown 前的事件送出）
+                    // 7. Flush Sentry 事件佇列（確保 shutdown 前的事件送出）
                     if let Some(client) = sentry::Hub::current().client() {
                         client.flush(Some(std::time::Duration::from_secs(2)));
                     }
 
-                    // 7. 如果是 restart 請求，在 _exit(0) 前自行 spawn 新 process
+                    // 8. 如果是 restart 請求，在 _exit(0) 前自行 spawn 新 process
                     //    （因為 _exit(0) 會截殺 Tauri 內建的 restart 邏輯）
                     if RESTART_REQUESTED.load(Ordering::SeqCst) {
                         match std::env::current_exe() {

@@ -116,13 +116,52 @@ describe("enhancer.ts", () => {
       expect(callArgs[1].headers.Authorization).toBe(`Bearer ${TEST_API_KEY}`);
 
       const body = JSON.parse(callArgs[1].body);
-      expect(body.model).toBe("qwen/qwen3-32b");
+      expect(body.model).toBe("llama-3.3-70b-versatile");
       expect(body.temperature).toBe(0.1);
       expect(body.max_tokens).toBe(2048);
       expect(body.messages).toHaveLength(2);
       expect(body.messages[0].role).toBe("system");
       expect(body.messages[1].role).toBe("user");
       expect(body.messages[1].content).toBe("測試輸入文字");
+    });
+
+    it("[P0] Anthropic provider 應使用正確的 URL、header、body 格式", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "Anthropic 整理結果" }],
+          usage: { input_tokens: 40, output_tokens: 60 },
+        }),
+      });
+
+      const { enhanceText } = await import("../../src/lib/enhancer");
+      const result = await enhanceText("測試輸入", TEST_API_KEY, {
+        modelId: "claude-haiku-4-5-20251001",
+      });
+
+      expect(result.text).toBe("Anthropic 整理結果");
+      expect(result.usage).toEqual({
+        promptTokens: 40,
+        completionTokens: 60,
+        totalTokens: 100,
+        promptTimeMs: undefined,
+        completionTimeMs: undefined,
+        totalTimeMs: undefined,
+      });
+
+      const callArgs = mockFetch.mock.calls[0];
+      expect(callArgs[0]).toBe("https://api.anthropic.com/v1/messages");
+
+      const headers = callArgs[1].headers;
+      expect(headers["x-api-key"]).toBe(TEST_API_KEY);
+      expect(headers["anthropic-version"]).toBe("2023-06-01");
+      expect(headers.Authorization).toBeUndefined();
+
+      const body = JSON.parse(callArgs[1].body);
+      expect(body.system).toBeDefined();
+      expect(body.messages).toHaveLength(1);
+      expect(body.messages[0].role).toBe("user");
+      expect(body.max_tokens).toBe(2048);
     });
 
     it("[P0] 應 trim 回傳的文字", async () => {

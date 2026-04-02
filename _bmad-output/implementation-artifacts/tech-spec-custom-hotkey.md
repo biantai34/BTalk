@@ -155,18 +155,23 @@ CGEventType::KeyDown => {
 }
 ```
 
-若 Custom key 恰好是修飾鍵，`FlagsChanged` 分支也需處理（toggle-based 檢測）：
+若 Custom key 恰好是修飾鍵，`FlagsChanged` 分支也需處理（flag-based 檢測）���
 ```rust
 CGEventType::FlagsChanged => {
     // ...existing modifier logic...
     if let TriggerKey::Custom { keycode: custom_kc } = &trigger {
         if keycode == *custom_kc {
-            let was_pressed = state.is_pressed.load(Ordering::SeqCst);
-            handle_key_event(&app_handle, !was_pressed, &state);
+            if let Some(pressed) = is_modifier_pressed(flags, &trigger) {
+                handle_key_event(&app_handle, pressed, &state, &mode);
+            } else {
+                let was_pressed = state.is_pressed.load(Ordering::SeqCst);
+                handle_key_event(&app_handle, !was_pressed, &state, &mode);
+            }
         }
     }
 }
 ```
+注意：`is_modifier_pressed` 對已知修飾鍵 keycode（含 Fn=63）回傳 `Some(bool)` 基於 CGEventFlags；未知 keycode 回傳 `None` 時 fallback 至 toggle-based。
 
 **CapsLock 注意**（Review F4）：CapsLock（keycode 57）在 macOS 的 `FlagsChanged` 行為特殊——按住不放時只觸發一次事件，且 macOS 有系統層級延遲（長按切換輸入法）。toggle-based 檢測在 Hold 模式下可能不可靠。已將 CapsLock 加入 `DANGEROUS_KEYS` 並標註警告。
 
@@ -282,7 +287,7 @@ Task 1 (keycodeMap) ──→ Task 2 (TS 型別) ──→ Task 5 (Store) ──
     - 在 enum 末尾新增 `Custom { keycode: u16 }`
     - 在 `matches_trigger_key_macos()` 新增：`TriggerKey::Custom { keycode: custom_kc } => keycode == *custom_kc`
     - 在 `is_modifier_pressed()` 新增：`TriggerKey::Custom { .. } => None`
-    - 擴充 CGEventTap 回呼 `FlagsChanged`：Custom + keycode 匹配 → toggle-based 檢測
+    - 擴充 CGEventTap 回呼 `FlagsChanged`：Custom + keycode 匹配 → `is_modifier_pressed` flag-based 檢測（已知修飾鍵），fallback toggle-based（未知鍵）
     - 擴充 CGEventTap 回呼 `KeyDown`：Custom + keycode 匹配 → `handle_key_event(true)`
     - 擴充 CGEventTap 回呼 `KeyUp`：Custom + keycode 匹配 → `handle_key_event(false)`
     - **新增 `#[cfg(test)]` 測試**（Review F1）：
@@ -408,7 +413,7 @@ Task 1 (keycodeMap) ──→ Task 2 (TS 型別) ──→ Task 5 (Store) ──
 
 - **高風險項：DOM keyCode → macOS keycode 映射表準確性**。映射表需手動維護，若有遺漏會導致「不支援此按鍵」。建議先覆蓋最常見的 80 個鍵，後續根據使用者回報補充。
 - **CapsLock 在 macOS 的特殊行為**：CapsLock 觸發 `FlagsChanged` 事件（keycode 57），有系統層級延遲（長按切換輸入法），且 Hold 模式下可能不可靠。已加入 `DANGEROUS_KEYS` + 專用警告。
-- **Hold 模式 + 一般鍵的語意**：一般鍵（如 F5）有明確的 KeyDown/KeyUp，Hold 模式語意清晰。修飾鍵和 CapsLock 走 FlagsChanged toggle-based 路徑。
+- **Hold 模式 + 一般��的語意**：一般鍵（如 F5）有明確的 KeyDown/KeyUp，Hold 模式語意清晰。修飾鍵走 FlagsChanged flag-based 路徑（`is_modifier_pressed` 查 CGEventFlags）；未知修飾鍵 fallback toggle-based。Preset Fn 只回應 keycode 63 的 FlagsChanged（避免 Globe 鍵系統事件干擾）。
 - **DOM keydown 盲區**：Fn、Media keys、Power 等完全不觸發 DOM 事件，錄製 UI 已加入超時提示和說明文字。
 - **系統級快捷鍵**：`event.preventDefault()` 無法攔截 Cmd+Q、Win+L 等。錄製中按這些鍵可能導致 App 退出或系統鎖定，此為 OS 層級限制，不做額外處理。
 - 觸發模式（Hold / Toggle）與本功能正交，`handle_key_event()` 不需修改。

@@ -1,10 +1,10 @@
 ---
 project_name: 'sayit'
 user_name: 'Jackle'
-date: '2026-03-18'
-sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n', 'smart_dictionary', 'model_registry_v2', 'esc_global_abort', 'hallucination_v3', 'sound_feedback', 'enhancement_anomaly', 'audio_input_device']
+date: '2026-03-28'
+sections_completed: ['technology_stack', 'language_rules', 'framework_rules', 'testing_rules', 'code_quality', 'workflow_rules', 'critical_rules', 'sentry_telemetry', 'i18n', 'smart_dictionary', 'model_registry_v2', 'esc_global_abort', 'hallucination_v3', 'sound_feedback', 'enhancement_anomaly', 'audio_input_device', 'audio_preview', 'combo_hotkey', 'rust_driven_recording', 'edit_mode', 'feature_guide', 'gemini_provider']
 status: 'complete'
-rule_count: 275
+rule_count: 323
 optimized_for_llm: true
 ---
 
@@ -82,16 +82,22 @@ _This file contains critical rules and patterns that AI agents must follow when 
 ### External APIs
 
 - Groq Whisper API — `https://api.groq.com/openai/v1/audio/transcriptions`（預設模型：`whisper-large-v3`，語言：由 `getWhisperLanguageCode()` 回傳 `string | null`（auto 模式回傳 `null` 表示 Whisper 自動偵測），Rust fallback `"zh"`，可選 `whisper-large-v3-turbo`）
-- Groq LLM API — `https://api.groq.com/openai/v1/chat/completions`，兩個獨立模型設定：
-  - **文字整理**（enhancer）：預設 `moonshotai/kimi-k2-instruct`，可選 Llama 3.3 70B / Llama 4 Scout 17B / Qwen3 32B，temperature: 0.1，timeout: 5s
-  - **字典分析**（vocabularyAnalyzer）：預設 `llama-3.3-70b-versatile`，可選 Kimi K2 Instruct，temperature: 0，max_tokens: 256
+- **多 Provider LLM API** — 文字整理（enhancer）與字典分析（vocabularyAnalyzer）共用同一 provider/model/API key，透過 `src/lib/llmProvider.ts` 抽象層路由：
+  - **Groq** — `https://api.groq.com/openai/v1/chat/completions`，Bearer auth，timeout 5s，模型：Llama 3.3 70B（預設）/ Qwen3 32B / Llama 4 Scout 17B
+  - **OpenAI** — `https://api.openai.com/v1/chat/completions`，Bearer auth，使用 `max_completion_tokens`（非 `max_tokens`），timeout 30s，模型：GPT-5.4 Mini（預設）/ GPT-5.4 Nano
+  - **Anthropic** — `https://api.anthropic.com/v1/messages`，`x-api-key` header + `anthropic-version: 2023-06-01`，system message 提取至頂層 `system` 欄位，timeout 30s，模型：Claude Haiku 4.5（預設）/ Claude 3.5 Haiku
+  - **Gemini** — `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`，`x-goog-api-key` header，model 在 URL（非 body），system message 用 `system_instruction.parts[].text`，user/assistant 用 `contents[].parts[].text`（assistant role → `"model"`），`generationConfig.maxOutputTokens`，timeout 30s，模型：Gemini 2.5 Flash（預設，免費 250 RPD）/ Gemini 2.5 Flash-Lite（免費 1,000 RPD）
+  - **Gemini finishReason 檢查** — `parseGeminiResponse` 檢查 `candidates[0].finishReason`，非 `STOP`/`MAX_TOKENS` 時拋出錯誤（如 `SAFETY`、`RECITATION`），避免安全過濾靜默 fallback
+  - **Provider 抽象層** — `llmProvider.ts` 提供 `buildFetchParams()` / `parseProviderResponse()` 統一處理各 provider 差異
 - **模型註冊** — `src/lib/modelRegistry.ts` 集中管理：
-  - 三組獨立型別：`LlmModelId`、`VocabularyAnalysisModelId`、`WhisperModelId`
-  - 三個獨立模型清單：`LLM_MODEL_LIST`、`VOCABULARY_ANALYSIS_MODEL_LIST`、`WHISPER_MODEL_LIST`
-  - 三個安全取得函式：`getEffectiveLlmModelId()`、`getEffectiveVocabularyAnalysisModelId()`、`getEffectiveWhisperModelId()`
+  - 兩組型別：`LlmModelId`（含 `LlmProviderId = "groq" | "gemini" | "openai" | "anthropic"`）、`WhisperModelId`
+  - 兩個獨立模型清單：`LLM_MODEL_LIST`、`WHISPER_MODEL_LIST`
+  - 兩個安全取得函式：`getEffectiveLlmModelId()`、`getEffectiveWhisperModelId()`
+  - 新增 helper：`getModelListByProvider()`、`getDefaultModelIdForProvider()`、`getProviderIdForModel()`
+  - 每個 `LlmModelConfig` 必須包含 `providerId` 欄位
   - 價格、免費配額、Badge 標籤（`badgeKey`）
-  - **下架遷移機制** — `DECOMMISSIONED_MODEL_MAP: Record<string, LlmModelId>`，舊 ID → 新 ID 映射，`getEffectiveLlmModelId()` 自動遷移（僅 LLM 模型，Whisper/字典分析直接 fallback 預設）
-- CSP 白名單：`connect-src 'self' https://api.groq.com`
+  - **下架遷移機制** — `DECOMMISSIONED_MODEL_MAP: Record<string, LlmModelId>`，舊 ID → 新 ID 映射，`getEffectiveLlmModelId()` 自動遷移（僅 LLM 模型，Whisper 直接 fallback 預設）
+- CSP 白名單：`connect-src 'self' https://api.groq.com https://generativelanguage.googleapis.com https://api.openai.com https://api.anthropic.com`
 
 ### Sentry/Telemetry 整合
 
@@ -152,6 +158,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **Plugin 模式** — 每個功能模組是獨立的 `TauriPlugin<R>`，在 `plugins/mod.rs` 中 `pub mod` 匯出（目前：`clipboard_paste`, `hotkey_listener`, `keyboard_monitor`, `audio_control`, `audio_recorder`, `transcription`, `sound_feedback`, `text_field_reader`）。`hotkey_listener` 額外提供 `reset_hotkey_state` command（ESC 中斷後重置 toggle 狀態）。`sound_feedback` 提供 `play_start_sound`/`play_stop_sound`/`play_error_sound`/`play_learned_sound` commands，前端透過 `playSoundIfEnabled()` 依 `isSoundEffectsEnabled` 設定條件呼叫
 - **audio_recorder 錄音檔管理 Commands（Story 4.4）** — `save_recording_file`（寫入 WAV 至 `{APP_DATA}/recordings/`）、`read_recording_file`（接受 `id` 參數，Rust 端組合路徑讀取 WAV 位元組，回傳 `Response`）、`delete_all_recordings`（清除所有錄音檔）、`cleanup_old_recordings`（按天數清理過期檔案，回傳被刪除的 transcription ID list）
 - **transcription 重送 Command（Story 4.5）** — `retranscribe_from_file`（從磁碟讀取 WAV 重新轉錄），內部共用 `send_transcription_request()` 函式（與 `transcribe_audio` 共用 Groq API 邏輯，避免重複實作）
+- **text_field_reader: `read_selected_text` command** — 透過模擬 Cmd+C（macOS）/ Ctrl+C（Windows）擷取剪貼簿內容偵測選取文字，不依賴 Accessibility API。流程：儲存剪貼簿 → 清空 → 模擬複製 → 等 100ms → 讀取 → 還原。實作位於 `clipboard_paste::capture_selected_text_via_clipboard()`。`read_focused_text_field` 仍使用 AX API（`FocusedElementContext` + role check）
 - **Plugin State shutdown 慣例** — 每個 Plugin State struct 必須實作 `pub fn shutdown(&self)` 方法，用於 App 退出時清理資源（停止錄音、恢復音量、取消 CGEventTap 等）。`shutdown()` 內部必須處理 `Mutex` poisoned 的情況（`match lock() { Err(_) => return }`）
 - **Serde JSON 序列化** — Rust → 前端的 payload struct 使用 `#[serde(rename_all = "camelCase")]` 確保前端收到 camelCase JSON
 - **Crate 命名** — `name = "sayit_lib"`，`crate-type = ["staticlib", "cdylib", "rlib"]`
@@ -206,6 +213,12 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **新 Plugin 加入時** — 必須在對應位置加入 `shutdown()` 呼叫，並考慮順序依賴
 - **`try_state::<T>()`** — 使用 `try_state` 而非 `state`，因為 Exit 事件不保證所有 state 都已註冊
 
+#### CGEvent 貼上機制（clipboard_paste）
+
+- **事件源** — 使用 `CGEventSourceStateID::Private`（隔離事件源），不繼承物理鍵盤的 modifier 狀態。禁止使用 `HIDSystemState` 或 `CombinedSessionState`，否則 Toggle 模式下 modifier trigger key（如右 Option）的殘留 Alternate flag 會污染模擬的 Cmd+V，導致目標 app 收到 Opt+Cmd+V 觸發重複貼上
+- **投遞位置** — 使用 `CGEventTapLocation::Session`（Session 層），不走 HID 管線。新版 macOS（15.x+）的 HID 層事件可能經由多重路徑投遞導致重複
+- **事件序列** — Cmd↓ → V↓ → V↑ → Cmd↑（4 事件完整配對），V↓/V↑ 帶 `CGEventFlagCommand`，Cmd↑ 帶 `CGEventFlagNull`
+
 #### Persistent Event Tap 模式（keyboard_monitor）
 
 - **持久監聽器** — `keyboard_monitor.rs` 在 `KeyboardMonitorState::new()` 時建立一次 CGEventTap（macOS）/ Windows Hook，App 生命週期內永不銷毀
@@ -224,6 +237,28 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **ESC 為保留鍵** — `keycodeMap.ts` 中 ESC 為 hard block（`getDangerousKeyWarning("Escape")` 回傳 null，`getEscapeReservedMessage()` 提供錯誤訊息），設定頁面拒絕設定 ESC 為 trigger key
 - **已知限制** — Rust 端 `transcribe_audio` HTTP 請求無法真正取消，僅前端忽略結果（API 費用照算）
 
+#### 組合鍵 + 模式切換（hotkey_listener）
+
+- **TriggerKey 三種 variant** — `PresetTriggerKey`（字串如 `"fn"`）、`Custom { keycode }`、`Combo { modifiers: Vec<ModifierFlag>, keycode }`。Serde externally tagged（Rust 預設），JSON：`{ "combo": { "modifiers": ["command"], "keycode": 38 } }`
+- **ModifierFlag enum** — `Command | Control | Option | Shift | Fn`（5 variants），`#[serde(rename_all = "camelCase")]`。macOS `Fn` 透過 `CGEventFlagSecondaryFn` 偵測；Windows 無 Fn（firmware 層）
+- **HotkeySharedState 合併 Mutex** — `trigger_key + trigger_mode + active_modifiers + double_tap + recording + toggle_long_press_fired` 合併在單一 `Arc<Mutex<>>`，CGEventTap callback 只 lock 一次
+- **組合鍵 exact modifier match** — `matches_combo_trigger` 檢查 `modifiers.len() == active_mods.len()` + 所有 required modifier 存在。⌘+J 不會被 ⌘+⇧+J 觸發。空 modifiers 直接 reject。ESC keycode 作為 combo 主鍵直接 reject
+- **Hold 模式 Double-tap** — 快速按兩下觸發鍵（hold < 300ms, gap < 350ms）切換 promptMode（minimal ↔ active）。前端用 `waitForDoubleTapResolution()` Promise await mode-toggle event 或 400ms 超時
+- **Toggle 模式 Long-press** — Toggle 改為 release-based。按下時 spawn thread sleep 1s，若 `is_pressed` 仍 true → emit `hotkey:mode-toggle`（HUD 立即出現）。放開時 `toggle_long_press_fired` = true 跳過 toggle。短按 < 1s → 正常 toggle
+- **Mode-switch HUD 生命週期** — store 設 `modeSwitchLabel` + `showHud()`，3s 後清 label + `transitionTo("idle")`，與 success 流程一致（collapse 動畫 400ms → hideHud）。NotchHud 的 `modeSwitchLabel` watcher 只設 `visualMode = "mode-switch"`，不自行計時
+- **ESC 同時清除 DoubleTapState** — `handleEscapeAbort` 也 resolve pending `doubleTapResolve(false)` + 清除 `modeSwitchLabel`
+
+#### Rust-Driven 錄鍵（Recording Mode）
+
+- **Recording State** — `HotkeySharedState.recording: RecordingState { is_active, accumulated_modifiers, last_modifier_keycode }`
+- **Commands** — `start_hotkey_recording`（設 `recording.is_active = true`）、`cancel_hotkey_recording`（reset recording state）
+- **CGEventTap recording mode** — callback 開頭檢查 `recording.is_active`，true 時委派 `handle_recording_event_macos()`，跳過所有 trigger 邏輯
+- **FlagsChanged 處理** — 標準修飾鍵（Cmd/Ctrl/Opt/Shift）flag-based 累積；Fn 鍵 toggle-based（keycode 63 第一次 = press 累積，第二次 = release 捕獲）；所有修飾鍵放開且無主鍵 → emit `recording-captured { keycode: last_modifier_keycode, modifiers: [] }` 單鍵
+- **KeyDown 處理** — ESC → emit `recording-rejected { reason: "esc_reserved" }`；非修飾鍵 → emit `recording-captured { keycode, modifiers: accumulated }` combo 或單鍵
+- **Windows hook** — `handle_recording_event_windows` 同理，`is_modifier_vk()` 判斷修飾鍵，`get_active_modifiers_windows()` 追蹤狀態
+- **前端接收** — SettingsView 的 `startRecording()` 呼叫 `invoke("start_hotkey_recording")` + `listenToEvent(HOTKEY_RECORDING_CAPTURED/REJECTED)`。10s 超時呼叫 `cancel_hotkey_recording`。不再使用 DOM `keydown` 事件
+- **Display name** — `getKeyDisplayNameByKeycode()` 反向查表 keycode → domCode → 顯示名稱。Fn keycode 63 特別對應 `"Fn"`。`getDomCodeByKeycode()` 提供 keycode → domCode 反向查找
+
 #### Tauri Events 完整清單
 
 | Event Name | 常量名 | Direction | Payload |
@@ -241,12 +276,16 @@ _This file contains critical rules and patterns that AI agents must follow when 
 | `audio:waveform` | `AUDIO_WAVEFORM` | Rust → HUD | `WaveformPayload { levels: [f32; 6] }` |
 | `vocabulary:learned` | `VOCABULARY_LEARNED` | VoiceFlowStore → HUD | `VocabularyLearnedPayload` |
 | `escape:pressed` | `ESCAPE_PRESSED` | Rust → HUD | — |
+| `hotkey:mode-toggle` | `HOTKEY_MODE_TOGGLE` | Rust → HUD | `()` |
+| `hotkey:recording-captured` | `HOTKEY_RECORDING_CAPTURED` | Rust → Dashboard | `RecordingCapturedPayload` |
+| `hotkey:recording-rejected` | `HOTKEY_RECORDING_REJECTED` | Rust → Dashboard | `RecordingRejectedPayload` |
+| `audio:preview-level` | `AUDIO_PREVIEW_LEVEL` | Rust → Dashboard | `AudioPreviewLevelPayload` |
 
 #### SettingsKey 跨視窗同步
 
-- **`SettingsKey` 型別** — 定義 `settings:updated` event 的 `key` 欄位（`events.ts`）：`hotkey` | `apiKey` | `aiPrompt` | `enhancementThreshold` | `llmModel` | `vocabularyAnalysisModel` | `whisperModel` | `muteOnRecording` | `smartDictionaryEnabled` | `locale` | `transcriptionLocale` | `soundEffectsEnabled` | `promptMode` | `audioInputDevice`
+- **`SettingsKey` 型別** — 定義 `settings:updated` event 的 `key` 欄位（`events.ts`）：`hotkey` | `apiKey` | `aiPrompt` | `enhancementThreshold` | `llmModel` | `llmProvider` | `whisperModel` | `muteOnRecording` | `smartDictionaryEnabled` | `locale` | `transcriptionLocale` | `soundEffectsEnabled` | `promptMode` | `audioInputDevice`
 - **智慧字典開關** — `isSmartDictionaryEnabled`（macOS 預設啟用，Windows 預設關閉——因 Windows 尚未支援 `read_focused_text_field` AX API）
-- **字典分析模型獨立** — `selectedVocabularyAnalysisModelId` 與 `selectedLlmModelId` 分開儲存和選擇，各自有獨立的模型清單和設定 UI
+- **字典分析模型共用** — 字典分析與文字整理共用同一 provider + model + API key（`selectedLlmProviderId` + `selectedLlmModelId`），不再有獨立的字典分析模型選擇
 
 #### i18n 多語言（vue-i18n）
 
@@ -284,15 +323,45 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **長度爆炸偵測** — `enhancedText.length >= rawText.length * 2`（`ENHANCEMENT_LENGTH_EXPLOSION_RATIO = 2`）→ LLM 在回答問題或產生幻覺
 - **重試機制** — `useVoiceFlowStore` 偵測到異常後自動重試（最多 `MAX_ENHANCEMENT_RETRY_COUNT = 3` 次），重試仍異常則 fallback 到 rawText（`wasEnhanced: false`）
 - **整合位置** — `handleStopRecording()` 在 `enhanceText()` 之後，`completePasteFlow()` 之前
+- **⚠️ Edit Mode 不適用** — 編輯操作合法改變文字長度（翻譯、摘要），禁止對 edit mode 結果做異常偵測
+
+#### Edit Mode（編輯選取文字）
+
+- **偵測邏輯** — `handleStartRecording` 中非阻塞呼叫 `read_selected_text`（`.then()` 設定 `editSourceText`）。底層透過模擬 Cmd+C 讀剪貼簿（~100ms），不阻塞開始音效和錄音
+- **狀態推導** — `isEditMode` 是 `computed(() => editSourceText.value !== null)`，不是獨立 ref。只需設定 `editSourceText` 即可
+- **流程分支** — transcription 成功後，`isEditMode && editSourceText` 為真時走 `handleEditModeFlow()`，否則走既有增強流程
+- **Prompt 結構** — system prompt = `EDIT_MODE_PROMPTS[locale]` + `<instruction>語音指令</instruction>`，user message = 選取的文字。不傳 `vocabularyTermList`
+- **maxTokens** — edit mode 使用 `EDIT_MODE_MAX_TOKENS = 4096`（既有增強為 2048），因選取文字可能很長
+- **失敗不貼上** — 編輯模式 LLM 失敗必須呼叫 `failRecordingFlow()` 而非 fallback 貼上。貼上語音指令（如「翻譯成英文」）會覆蓋使用者原本選取的文字
+- **HudStatus** — 新增 `"editing"` 狀態，HUD 視覺複用 `"transcribing"` 動畫，錄音時顯示琥珀色「編輯」badge（`.hud-badge.edit-mode-badge`）
+- **DB** — migration v7→v8：`is_edit_mode INTEGER NOT NULL DEFAULT 0`、`edit_source_text TEXT`
+- **TranscriptionRecord** — 新增 `isEditMode: boolean`、`editSourceText: string | null`
+- **SQL 欄位清單** — `useHistoryStore.ts` 使用 `TRANSCRIPTION_SELECT_COLUMNS` 共用常數，新增欄位時只改一處
+- **ESC 中斷** — `handleEscapeAbort()` 重置 `editSourceText = null`（`isEditMode` 自動推導為 false）
 
 #### 音訊輸入裝置選擇
 
-- **Rust Command** — `list_audio_input_devices` → `Vec<AudioInputDeviceInfo>`（列舉 cpal 輸入裝置）
-- **`start_recording` 參數** — 新增 `device_name: String`，空字串 = 系統預設，依名稱查找失敗時 fallback 到預設裝置
-- **前端型別** — `AudioInputDeviceInfo { name: string }`（`src/types/audio.ts`）
+- **Rust Commands** — `list_audio_input_devices` → `Vec<AudioInputDeviceInfo>`（列舉 cpal 輸入裝置）；`get_default_input_device_name` → `Option<String>`（查詢系統預設裝置名稱）
+- **`start_recording` 參數** — `device_name: String`，空字串 = 系統預設，依名稱查找失敗時 fallback 到預設裝置
+- **共用裝置選擇** — `select_input_device(host, device_name, tag)` helper 封裝 cpal Arc cycle workaround，recording/preview thread 共用
+- **macOS cpal 0.15.3 workaround** — `input_devices()` 回傳的 Device（`is_default=false`）會觸發 disconnect listener 的 Arc 循環引用，導致 `drop(stream)` 無法釋放 AudioUnit。因此 `select_input_device` 優先比對 `default_input_device()`（`is_default=true`），stream 結束時必須 `stream.pause()` before drop
+- **前端型別** — `AudioInputDeviceInfo { name: string }`、`AudioPreviewLevelPayload { level: number }`（`src/types/audio.ts`）
 - **設定儲存** — `useSettingsStore.selectedAudioInputDeviceName`（預設空字串），持久化 key `audioInputDeviceName`
-- **UI** — `SettingsView.vue` 的「輸入裝置」Card，Select 元件 + 重新整理按鈕
-- **i18n key** — `settings.audioInput.{title, description, deviceLabel, systemDefault, refresh, updated}`
+- **UI** — `SettingsView.vue` 的「輸入裝置」Card，Select 元件 + 重新整理按鈕 + 音量預覽條
+- **預設裝置名稱顯示** — 「系統預設」選項後方括號顯示實際裝置名稱（`systemDefaultWithDevice` i18n key）
+- **i18n key** — `settings.audioInput.{title, description, deviceLabel, systemDefault, systemDefaultWithDevice, volumePreview, refresh, refreshed, updated}`
+
+#### 音量預覽（Audio Preview）
+
+- **獨立 State** — `AudioPreviewState { handle: Mutex<Option<PreviewHandle>> }`，`PreviewHandle` 含 `should_stop: Arc<AtomicBool>` + `thread: Option<JoinHandle<()>>`，與 `AudioRecorderState` 完全隔離
+- **Rust Commands** — `start_audio_preview(app, preview_state, device_name)` → `Result<(), String>`；`stop_audio_preview(preview_state)` → `()`
+- **Event** — `audio:preview-level`（常量 `AUDIO_PREVIEW_LEVEL`），payload `AudioPreviewLevelPayload { level: f32 }`，30ms 間隔 emit
+- **RMS → dB 映射** — `PREVIEW_DB_FLOOR = -60.0`、`PREVIEW_DB_CEILING = -20.0`（40 dB 動態範圍），線性 RMS 轉 dB 後正規化。AirPods Pro 等低增益麥克風語音 RMS 約 0.005~0.018（-46 ~ -35 dB）→ 35%~63% 顯示
+- **preview stream** — `build_preview_stream<T>` 泛型，callback 計算 mono mix + clamp + 累積 `(sum_squares, sample_count)` 到單一 `Mutex<(f64, usize)>`（原子一致性），不存 samples、不做 FFT
+- **生命週期** — 設定頁 `onMounted` 啟動（先 `loadAudioInputDeviceList` 再 `startPreview`）、`onBeforeUnmount` 停止；切換裝置時重啟；錄音開始時自動停止（`start_recording` 持有 recording lock 期間呼叫 `stop_audio_preview_inner`）；錄音進行中不啟動（AC 11 檢查）
+- **Thread 清理** — `stop_audio_preview_inner` 會 `take()` handle → set flag → `thread.join()`，確保裝置完全釋放。`RunEvent::Exit` 中 preview shutdown 必須在 recorder shutdown 之前
+- **Composable** — `useAudioPreview.ts`：`useRafFn` + LERP(0.2) + `startRequestId` re-entrancy guard + `onUnmounted` cleanup
+- **UI** — `role="meter"` + `aria-valuenow` + `Mic` icon + `bg-primary` bar + `transition-[width] duration-75`
 
 #### 轉錄語言分離（TranscriptionLocale）
 
@@ -311,7 +380,7 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - **preset 模式（minimal/active）** — `getAiPrompt()` 即時計算，呼叫 `getPromptForModeAndLocale(mode, locale)` 自動跟隨 locale 切換，無需手動同步
 - **custom 模式** — 使用者自訂 prompt，切語言不影響 prompt 內容
 - **`refreshCrossWindowSettings()` 順序** — 必須先載入 `selectedLocale` + `selectedTranscriptionLocale`，再載入 `promptMode`，最後計算 `aiPrompt` fallback（因為 `getEffectivePromptLocale()` 依賴這些值）
-- **v0.8.7 一次性遷移** — `loadSettings()` 檢查 `llmMigratedToKimiK2` flag（`tauri-plugin-store`），首次為 false 時強制將 LLM 模型設為 `DEFAULT_LLM_MODEL_ID`（Kimi K2），寫入 flag 後不再觸發。使用者可在設定中手動切回其他模型
+- **Kimi K2 退場遷移** — `loadSettings()` 檢查 `llmMigratedFromKimiK2` flag（`tauri-plugin-store`），若 `llmModelId` 為 `moonshotai/kimi-k2-instruct` 則遷移為 `llama-3.3-70b-versatile` + provider `groq`。另有 model-provider 交叉驗證，防止 model 與 provider 不匹配導致 API key 洩漏
 
 #### Tailwind CSS v4
 
@@ -490,12 +559,13 @@ src/
 │   ├── useFeedbackMessage.ts # 臨時回饋訊息模式
 │   └── useAudioWaveform.ts  # 音訊波形視覺化（Tauri Event push 模式）
 ├── lib/                  # Service 層（純邏輯，無 Vue 依賴）
-│   ├── enhancer.ts          # Groq LLM AI 整理
-│   ├── vocabularyAnalyzer.ts # Groq LLM 字典分析（修正偵測後 AI 差異比對）
+│   ├── enhancer.ts          # LLM AI 整理（多 Provider）
+│   ├── vocabularyAnalyzer.ts # LLM 字典分析（多 Provider，修正偵測後 AI 差異比對）
+│   ├── llmProvider.ts       # LLM Provider 抽象層（buildFetchParams / parseProviderResponse）
 │   ├── database.ts          # SQLite 初始化 + migration
 │   ├── autoUpdater.ts       # tauri-plugin-updater 封裝（回傳 UpdateCheckResult）
 │   ├── sentry.ts            # Sentry 初始化 + captureError（雙視窗策略）
-│   ├── modelRegistry.ts     # LLM/Whisper/字典分析 模型註冊、價格、Badge、下架遷移
+│   ├── modelRegistry.ts     # LLM（含 ProviderId）/Whisper 模型註冊、價格、Badge、下架遷移
 │   ├── keycodeMap.ts        # DOM event.code → 平台原生 keycode 映射
 │   ├── errorUtils.ts        # 錯誤訊息本地化（繁體中文）
 │   ├── hallucinationDetector.ts   # 二層幻覺偵測純函式（語速異常 + 無人聲偵測）
@@ -503,20 +573,21 @@ src/
 │   ├── apiPricing.ts        # API 費用上限計算（Whisper + LLM）
 │   └── utils.ts             # cn() shadcn-vue 工具函式
 ├── stores/               # Pinia stores
-│   ├── useSettingsStore.ts      # 快捷鍵 / API Key / AI Prompt / Prompt Mode / 開機啟動 / UI locale / 轉錄 locale / Whisper 語言 / 字典分析模型
+│   ├── useSettingsStore.ts      # 快捷鍵 / API Key (Groq/Gemini/OpenAI/Anthropic) / LLM Provider / AI Prompt / Prompt Mode / 開機啟動 / UI locale / 轉錄 locale / Whisper 語言
 │   ├── useHistoryStore.ts       # 歷史記錄 CRUD + Dashboard 統計 + 分頁
 │   ├── useVocabularyStore.ts    # 詞彙字典 CRUD + 權重系統 + AI 推薦詞管理
 │   └── useVoiceFlowStore.ts     # 錄音/轉錄/AI 整理/貼上/修正偵測/字典學習完整流程
 ├── views/                # Main Window 頁面
-│   ├── DashboardView.vue    # 統計卡片 + 最近轉錄列表
-│   ├── HistoryView.vue      # 歷史記錄搜尋與管理
+│   ├── DashboardView.vue      # 統計卡片 + 最近轉錄列表
+│   ├── FeatureGuideView.vue   # 功能介紹頁（8 張功能卡片）
+│   ├── HistoryView.vue        # 歷史記錄搜尋與管理
 │   ├── DictionaryView.vue   # 詞彙字典 CRUD
 │   └── SettingsView.vue     # 快捷鍵 / API Key / AI Prompt / Prompt Mode 切換 設定
 ├── types/                # TypeScript 型別定義
 │   ├── index.ts             # HudStatus（含 cancelled）, TriggerMode, HudTargetPosition 等共用型別
 │   ├── transcription.ts     # TranscriptionRecord, DashboardStats, ApiUsageRecord, DailyUsageTrend
 │   ├── vocabulary.ts        # VocabularyEntry（含 weight, source）
-│   ├── settings.ts          # TriggerKey (含右側修飾鍵: rightOption, rightControl), HotkeyConfig, SettingsDto
+│   ├── settings.ts          # TriggerKey (Preset | Custom | Combo), ModifierFlag, HotkeyConfig, PromptMode
 │   ├── events.ts            # 所有 Tauri Event payload 型別
 │   └── audio.ts             # WaveformPayload, StopRecordingResult（含 rmsEnergyLevel）, TranscriptionResult
 ├── App.vue              # HUD Window 入口
@@ -636,6 +707,7 @@ src/
 - **❌ 假設 `sql:default` 包含寫入權限** — Tauri v2 的 `sql:default` 只有 `load/select/close`，任何 DDL/DML 操作需要額外的 `sql:allow-execute`。新增 Tauri plugin 時務必用 `acl-manifests.json` 確認 default 權限組的實際內容
 - **❌ mount 前未初始化 DB** — `main-window.ts` 中 `app.mount()` 會觸發所有元件的 `onMounted`，若 DB 尚未初始化，Store 的 `getDatabase()` 會拋錯且被 try-catch 靜默吞掉
 - **❌ 每次轉錄重建/銷毀 CGEventTap** — `keyboard_monitor` 必須使用持久 CGEventTap/Hook 模式：App 啟動時建立一次，靠 `is_monitoring: AtomicBool` flag 控制是否處理事件。重複建立/銷毀 CGEventTap 會產生幽靈按鍵（ghost Enter key），這是已確認的 bug 根因
+- **❌ CGEvent 貼上使用 HIDSystemState / CombinedSessionState 事件源** — `simulate_paste_via_cgevent()` 必須使用 `CGEventSourceStateID::Private`，否則 Toggle 模式 + modifier trigger key（如右 Option）會殘留 Alternate flag 導致重複貼上。投遞位置必須用 `CGEventTapLocation::Session`
 - **❌ `RunEvent::Exit` 中用 `state()` 取 managed state** — 必須用 `try_state::<T>()` + `if let Some(state)` 模式，避免 state 未註冊時 panic
 - **❌ 硬編碼使用者可見字串** — 所有使用者看得到的文字必須使用 i18n 翻譯鍵（Vue 元件用 `$t()` / `t()`，lib/store 用 `i18n.global.t()`），禁止中文/英文硬編碼。程式碼註解和日誌不需翻譯
 - **❌ 字串解析提取結構化資訊** — 禁止用 regex 從 `error.message` 提取 status code 等資訊（如 `match(/：(\d+)/)`），必須用 Error class 屬性（如 `EnhancerApiError.statusCode`）
@@ -643,13 +715,18 @@ src/
 - **❌ 新增翻譯鍵但不同步所有 locale 檔案** — 5 個 locale JSON 的 key 結構必須完全一致，新增鍵時必須同時更新所有檔案
 - **❌ preset 模式下手動持久化 prompt 文字** — `promptMode` 為 `minimal` 或 `active` 時，prompt 由 `getAiPrompt()` 即時計算，禁止額外呼叫 `store.set("aiPrompt")`
 - **❌ `refreshCrossWindowSettings` 中先算 prompt 再載 locale/promptMode** — 必須先載入 `selectedLocale` + `selectedTranscriptionLocale` + `promptMode`，再計算 `aiPrompt` fallback，否則 `getEffectivePromptLocale()` 會用到舊值
-- **❌ 硬編碼模型 ID** — 模型 ID 必須從 `modelRegistry.ts` 的 type union（`LlmModelId` / `VocabularyAnalysisModelId` / `WhisperModelId`）取值，禁止字串硬編碼。新增/移除模型時必須同時更新 type、清單、預設值
+- **❌ 硬編碼模型 ID** — 模型 ID 必須從 `modelRegistry.ts` 的 type union（`LlmModelId` / `WhisperModelId`）取值，禁止字串硬編碼。新增/移除模型時必須同時更新 type、清單、預設值。每個 `LlmModelConfig` 必須包含 `providerId`
 - **❌ 忽略下架模型遷移** — 新模型取代舊模型時必須在 `DECOMMISSIONED_MODEL_MAP` 加入舊 ID → 新 ID 映射，否則舊版使用者升級後設定會 fallback 到預設而非指定替代
-- **❌ 字典分析使用 enhancer 模型清單** — 字典分析（`vocabularyAnalyzer.ts`）和文字整理（`enhancer.ts`）使用完全獨立的模型清單（`VOCABULARY_ANALYSIS_MODEL_LIST` vs `LLM_MODEL_LIST`）和 ID 型別（`VocabularyAnalysisModelId` vs `LlmModelId`），不可混用
+- **❌ 字典分析繞過 Provider 抽象層** — 字典分析（`vocabularyAnalyzer.ts`）和文字整理（`enhancer.ts`）共用同一 provider/model/API key，必須透過 `llmProvider.ts` 抽象層路由到正確的 API endpoint，不可直接硬編碼 API URL 或 auth header
 - **❌ abort 後未檢查 `isAborted` 繼續執行** — `handleStopRecording` / `handleRetryTranscription` 中每個 `await` 之後及外層 `catch` 必須加 `if (isAborted.value) return;`，否則 abort 引發的錯誤或舊結果會覆蓋 cancelled 狀態。`handleStartRecording` 的 `await invoke("start_recording")` 之後也需要檢查
 - **❌ 使用 ESC（keycode 53 / VK 0x1B）作為 Custom trigger key** — ESC 已保留為全域中斷鍵，`keycodeMap.ts` 的 `getDangerousKeyWarning("Escape")` 回傳 null（不走 warning 路徑），由 `getEscapeReservedMessage()` 提供 hard block 錯誤訊息
 - **❌ 重送成功時 INSERT 新 transcription 記錄** — 重送路徑必須使用 `completePasteFlow({ skipRecordSaving: true })` + `updateTranscriptionOnRetrySuccess()` UPDATE 現有 failed 記錄，禁止 INSERT（PK 衝突 + FK 787 錯誤）
 - **❌ 重送的 API usage 不等 transcription UPDATE 完成** — `saveApiUsageRecordList` 必須串接在 `updateTranscriptionOnRetrySuccess().then()` 之後，確保 FK 依賴正確
+- **❌ 新增 LLM Provider 但未更新 Tauri scope** — `capabilities/default.json` 的 `http:default.allow` 和 `tauri.conf.json` 的 CSP `connect-src` 必須同時加入新 API domain，否則 `fetch` 會被 `url not allowed on the configured scope` 拒絕
+- **❌ Gemini response finishReason 非 STOP 時靜默處理** — `parseGeminiResponse` 必須檢查 `finishReason`，SAFETY/RECITATION 等會回 200 OK 但內容為空，不檢查會靜默 fallback 到原始文字
+- **❌ `read_selected_text` 用 await 阻塞 hot path** — 必須用 `.then()` 非阻塞呼叫，避免模擬 Cmd+C ~100ms 延遲影響開始音效。結果在 `handleStopRecording` 前早已就緒
+- **❌ 編輯失敗時貼上任何東西** — edit mode LLM 失敗必須走 `failRecordingFlow()`，禁止 fallback 貼上語音指令（會覆蓋使用者選取的原文）
+- **❌ edit mode 使用 `detectEnhancementAnomaly`** — 翻譯/摘要會合法改變長度，禁止對 edit mode 結果做長度爆炸偵測
 - **❌ 在幻覺偵測中單獨依賴 NSP** — `noSpeechProbability` 不可靠（Whisper 對中文軟音常報高 NSP），只能搭配 peak + RMS 能量作為輔助信號（Layer 2b），不可單獨用於判斷
 - **❌ 使用 peakEnergyLevel 判斷「有沒有人說話」** — peak 只反映瞬時最大振幅，背景噪音也能達到 0.15+。但 peak >= 0.03 可作為 Layer 2b 的 escape hatch，跳過 RMS+NSP 檢查避免小聲說話誤判
 
@@ -674,7 +751,7 @@ src/
 
 #### 安全規則
 
-- **CSP 硬限制** — `default-src 'self'; connect-src 'self' https://api.groq.com; media-src 'self' http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'`
+- **CSP 硬限制** — `default-src 'self'; connect-src 'self' https://api.groq.com https://generativelanguage.googleapis.com; media-src 'self' blob: http://asset.localhost; style-src 'self' 'unsafe-inline'; script-src 'self'`
 - **API Key 不出本地** — 只在 tauri-plugin-store 中，不上傳、不寫入日誌、不透過 Events 傳播
 - **macOS 權限** — Accessibility 權限是全域熱鍵監聽的前提（CGEventTap）
 - **macOS Entitlements** — 需 `Entitlements.plist`，`macOSPrivateApi: true`
@@ -714,4 +791,4 @@ src/
 - Review periodically for outdated rules
 - Remove rules that become obvious over time
 
-Last Updated: 2026-03-18 (v13 — Layer 2b peak escape hatch、enhancement anomaly 偵測+重試、音訊輸入裝置選擇、enhancer temperature 0.1、Active prompt 語氣保留規則、errorUtils Rust 錯誤匹配)
+Last Updated: 2026-03-27 (v14 — 音量預覽系統：AudioPreviewState + dB 映射 + select_input_device 共用 helper + thread join cleanup + useAudioPreview composable + 預設裝置名稱顯示)

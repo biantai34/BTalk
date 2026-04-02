@@ -46,6 +46,11 @@ pub struct WaveformPayload {
 }
 
 #[derive(Clone, serde::Serialize)]
+pub struct AudioPreviewLevelPayload {
+    level: f32,
+}
+
+#[derive(Clone, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StopRecordingResult {
     recording_duration_ms: f64,
@@ -94,6 +99,101 @@ impl AudioRecorderState {
     }
 }
 
+// ========== Audio Preview State ==========
+
+struct PreviewHandle {
+    should_stop: Arc<AtomicBool>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+pub struct AudioPreviewState {
+    handle: Mutex<Option<PreviewHandle>>,
+}
+
+impl AudioPreviewState {
+    pub fn new() -> Self {
+        Self {
+            handle: Mutex::new(None),
+        }
+    }
+
+    pub fn shutdown(&self) {
+        stop_audio_preview_inner(self);
+    }
+}
+
+fn stop_audio_preview_inner(state: &AudioPreviewState) {
+    if let Ok(mut guard) = state.handle.lock() {
+        if let Some(mut handle) = guard.take() {
+            handle.should_stop.store(true, Ordering::SeqCst);
+            if let Some(thread) = handle.thread.take() {
+                let _ = thread.join();
+            }
+            println!("[audio-preview] Preview stopped and thread joined");
+        }
+    }
+}
+
+#[command]
+pub fn start_audio_preview(
+    app: AppHandle,
+    preview_state: State<'_, AudioPreviewState>,
+    device_name: String,
+) -> Result<(), String> {
+    // 如果錄音正在進行中，不啟動預覽（AC 11）
+    if let Some(recorder_state) = app.try_state::<AudioRecorderState>() {
+        if let Ok(guard) = recorder_state.recording.lock() {
+            if guard.is_some() {
+                println!("[audio-preview] Recording in progress, skipping preview start");
+                return Ok(());
+            }
+        }
+    }
+
+    // 停止舊的 preview（join thread 確保裝置完全釋放）
+    stop_audio_preview_inner(&preview_state);
+
+    let should_stop = Arc::new(AtomicBool::new(false));
+    let should_stop_for_thread = should_stop.clone();
+
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
+
+    let thread = std::thread::Builder::new()
+        .name("audio-preview".to_string())
+        .spawn(move || {
+            run_preview_thread(app, should_stop_for_thread, device_name, ready_tx);
+        })
+        .map_err(|e| format!("Thread spawn failed: {}", e))?;
+
+    // 等待 stream 建立成功/失敗
+    match ready_rx.recv() {
+        Ok(Ok(())) => {
+            let mut guard = preview_state
+                .handle
+                .lock()
+                .map_err(|_| "Lock poisoned".to_string())?;
+            *guard = Some(PreviewHandle {
+                should_stop,
+                thread: Some(thread),
+            });
+            Ok(())
+        }
+        Ok(Err(e)) => {
+            let _ = thread.join();
+            Err(e)
+        }
+        Err(_) => {
+            let _ = thread.join();
+            Err("Preview thread exited unexpectedly".to_string())
+        }
+    }
+}
+
+#[command]
+pub fn stop_audio_preview(preview_state: State<'_, AudioPreviewState>) {
+    stop_audio_preview_inner(&preview_state);
+}
+
 // ========== FFT Constants ==========
 
 const FFT_SIZE: usize = 64;
@@ -140,6 +240,23 @@ pub fn list_audio_input_devices() -> Vec<AudioInputDeviceInfo> {
     device_list
 }
 
+// ========== Device Query ==========
+
+#[command]
+pub fn get_default_input_device_name() -> Option<String> {
+    let host = cpal::default_host();
+    let result = host.default_input_device().and_then(|d| {
+        d.name()
+            .map_err(|e| {
+                eprintln!("[audio-recorder] Failed to get default device name: {}", e);
+                e
+            })
+            .ok()
+    });
+    println!("[audio-recorder] Default input device: {:?}", result);
+    result
+}
+
 // ========== Commands ==========
 
 #[command]
@@ -148,6 +265,7 @@ pub fn start_recording(
     state: State<'_, AudioRecorderState>,
     device_name: String,
 ) -> Result<(), AudioRecorderError> {
+    // 先取得 recording lock，防止 preview 在此期間重啟（F1+F7 race fix）
     let mut guard = state
         .recording
         .lock()
@@ -156,6 +274,11 @@ pub fn start_recording(
     if guard.is_some() {
         println!("[audio-recorder] Already recording, ignoring start_recording");
         return Ok(());
+    }
+
+    // 停止音量預覽（持有 recording lock，防止 preview 重啟）
+    if let Some(preview_state) = app.try_state::<AudioPreviewState>() {
+        stop_audio_preview_inner(&preview_state);
     }
 
     // Pre-allocate ~30 seconds at 16kHz (480,000 i16 samples ≈ 938KB)
@@ -279,24 +402,7 @@ fn run_recording_thread(
 ) {
     // ── Get input device ──
     let host = cpal::default_host();
-    let device = if device_name.is_empty() {
-        // 空字串 = 使用系統預設
-        host.default_input_device()
-    } else {
-        // 依名稱查找，找不到時 fallback 到系統預設
-        let found = host
-            .input_devices()
-            .ok()
-            .and_then(|mut devices| devices.find(|d| d.name().map_or(false, |n| n == device_name)));
-        if found.is_none() {
-            println!(
-                "[audio-recorder] Device '{}' not found, falling back to default",
-                device_name
-            );
-        }
-        found.or_else(|| host.default_input_device())
-    };
-    let device = match device {
+    let device = match select_input_device(&host, &device_name, "audio-recorder") {
         Some(d) => d,
         None => {
             let _ = ready_tx.send(Err(AudioRecorderError::NoInputDevice));
@@ -345,10 +451,225 @@ fn run_recording_thread(
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
 
-    // Stream dropped here → microphone released
+    // 顯式 pause：呼叫 AudioOutputUnitStop 停止麥克風捕獲。
+    // 兜底防禦 cpal macOS disconnect listener 的 Arc 循環引用——
+    // 即使 Arc cycle 導致 drop 無法觸發 AudioUnit 清理，pause 也能確保麥克風停止。
+    // 已知限制：非預設裝置仍會因 Arc cycle 洩漏 ~1-2 KB/次（StreamInner + listener）。
+    if let Err(e) = stream.pause() {
+        // ⚠️ 安全相關：pause 失敗意味著麥克風可能仍在捕獲，且 drop 也無法停止
+        eprintln!("[audio-recorder] SECURITY: Failed to pause stream, mic may remain active: {:?}", e);
+    }
     drop(stream);
     println!("[audio-recorder] Recording stopped, stream released");
 }
+
+// ========== Preview Thread ==========
+
+const PREVIEW_EMIT_INTERVAL_MS: u64 = 30;
+/// 預覽音量的 dB 映射範圍：-60 dB → 0%, -20 dB → 100%
+/// AirPods Pro 等低增益麥克風的語音 RMS 約 0.005~0.018（-46 ~ -35 dB）
+const PREVIEW_DB_FLOOR: f32 = -60.0;
+const PREVIEW_DB_CEILING: f32 = -20.0;
+
+fn run_preview_thread(
+    app: AppHandle,
+    should_stop: Arc<AtomicBool>,
+    device_name: String,
+    ready_tx: std::sync::mpsc::Sender<Result<(), String>>,
+) {
+    // ── 裝置選擇 ──
+    let host = cpal::default_host();
+    let device = match select_input_device(&host, &device_name, "audio-preview") {
+        Some(d) => d,
+        None => {
+            let _ = ready_tx.send(Err("No input device available".to_string()));
+            return;
+        }
+    };
+
+    println!(
+        "[audio-preview] Using device: '{}' (requested: '{}')",
+        device.name().unwrap_or_else(|_| "<unknown>".to_string()),
+        if device_name.is_empty() { "<system-default>" } else { &device_name }
+    );
+
+    // ── 輸入格式 ──
+    let selection = match determine_input_config(&device) {
+        Ok(c) => c,
+        Err(e) => {
+            let _ = ready_tx.send(Err(e.to_string()));
+            return;
+        }
+    };
+    let channels = selection.channels as usize;
+
+    // ── 建立 preview stream ──
+    // 使用單一 Mutex 確保 sum_squares 和 sample_count 的原子讀寫（F4 fix）
+    let accumulator = Arc::new(Mutex::new((0.0f64, 0usize)));
+    let accumulator_for_callback = accumulator.clone();
+
+    let sample_format = selection.supported_config.sample_format();
+    let config = selection.supported_config.config();
+
+    let build_result = match sample_format {
+        cpal::SampleFormat::I8 => build_preview_stream::<i8>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::I16 => build_preview_stream::<i16>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::I32 => build_preview_stream::<i32>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::I64 => build_preview_stream::<i64>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::U8 => build_preview_stream::<u8>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::U16 => build_preview_stream::<u16>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::U32 => build_preview_stream::<u32>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::U64 => build_preview_stream::<u64>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::F32 => build_preview_stream::<f32>(&device, &config, channels, accumulator_for_callback),
+        cpal::SampleFormat::F64 => build_preview_stream::<f64>(&device, &config, channels, accumulator_for_callback),
+        other => Err(format!("Unsupported sample format: {}", other)),
+    };
+
+    let stream = match build_result {
+        Ok(s) => s,
+        Err(e) => {
+            let _ = ready_tx.send(Err(e));
+            return;
+        }
+    };
+
+    if let Err(e) = stream.play() {
+        let _ = ready_tx.send(Err(format!("Failed to play preview stream: {}", e)));
+        return;
+    }
+
+    println!("[audio-preview] Preview started");
+    let _ = ready_tx.send(Ok(()));
+
+    // ── 主迴圈：每 30ms 計算 RMS 並 emit ──
+    while !should_stop.load(Ordering::SeqCst) {
+        std::thread::sleep(std::time::Duration::from_millis(PREVIEW_EMIT_INTERVAL_MS));
+
+        let (ss, count) = {
+            let mut guard = match accumulator.lock() {
+                Ok(g) => g,
+                Err(_) => break,
+            };
+            let snapshot = *guard;
+            *guard = (0.0, 0);
+            snapshot
+        };
+
+        // 計算 RMS → dB → 正規化到 0.0~1.0
+        // 線性 RMS 對語音太低（正常說話 ~0.03），dB 尺度才符合人耳感知
+        let level = if count > 0 {
+            let rms = (ss / count as f64).sqrt() as f32;
+            if rms > 0.0 {
+                let db = 20.0 * rms.log10();
+                ((db - PREVIEW_DB_FLOOR) / (PREVIEW_DB_CEILING - PREVIEW_DB_FLOOR)).clamp(0.0, 1.0)
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        let _ = app.emit("audio:preview-level", AudioPreviewLevelPayload { level });
+    }
+
+    // ── 清理（遵循 cpal macOS workaround） ──
+    if let Err(e) = stream.pause() {
+        eprintln!("[audio-preview] Failed to pause preview stream: {:?}", e);
+    }
+    drop(stream);
+    println!("[audio-preview] Preview stopped, stream released");
+}
+
+fn build_preview_stream<T>(
+    device: &cpal::Device,
+    config: &cpal::StreamConfig,
+    channels: usize,
+    accumulator: Arc<Mutex<(f64, usize)>>,
+) -> Result<cpal::Stream, String>
+where
+    T: cpal::Sample + cpal::SizedSample,
+    f32: cpal::FromSample<T>,
+{
+    device
+        .build_input_stream(
+            config,
+            move |data: &[T], _: &cpal::InputCallbackInfo| {
+                let mut local_sum = 0.0f64;
+                let mut local_count = 0usize;
+
+                for chunk in data.chunks(channels) {
+                    // F6 fix: clamp 防止 F32/F64 原生格式超出 [-1, 1]
+                    let mono = if channels > 1 {
+                        (chunk
+                            .iter()
+                            .map(|sample| sample.to_sample::<f32>())
+                            .sum::<f32>()
+                            / channels as f32)
+                            .clamp(-1.0, 1.0)
+                    } else {
+                        chunk[0].to_sample::<f32>().clamp(-1.0, 1.0)
+                    };
+
+                    local_sum += (mono as f64) * (mono as f64);
+                    local_count += 1;
+                }
+
+                if let Ok(mut guard) = accumulator.lock() {
+                    guard.0 += local_sum;
+                    guard.1 += local_count;
+                }
+            },
+            move |err| {
+                eprintln!("[audio-preview] Stream error: {}", err);
+            },
+            None,
+        )
+        .map_err(|e| format!("Failed to build preview stream: {}", e))
+}
+
+// ========== Device Selection ==========
+
+/// 共用裝置選擇邏輯（F10 fix: 消除 recording/preview 間的重複）
+/// WORKAROUND: cpal 0.15.3 macOS CoreAudio 的 Arc cycle — 優先 default_input_device() 路徑
+fn select_input_device(
+    host: &cpal::Host,
+    device_name: &str,
+    tag: &str,
+) -> Option<cpal::Device> {
+    if device_name.is_empty() {
+        host.default_input_device()
+    } else {
+        let default_device = host.default_input_device();
+        let default_matches = default_device
+            .as_ref()
+            .and_then(|d| d.name().ok())
+            .map_or(false, |n| n == device_name);
+
+        if default_matches {
+            println!(
+                "[{}] Device '{}' matches system default, using default_input_device",
+                tag, device_name
+            );
+            default_device
+        } else {
+            let found = host
+                .input_devices()
+                .ok()
+                .and_then(|mut devices| {
+                    devices.find(|d| d.name().map_or(false, |n| n == device_name))
+                });
+            if found.is_none() {
+                println!(
+                    "[{}] Device '{}' not found, falling back to default",
+                    tag, device_name
+                );
+            }
+            found.or(default_device)
+        }
+    }
+}
+
+// ========== Input Config ==========
 
 fn determine_input_config(
     device: &cpal::Device,
@@ -747,5 +1068,49 @@ mod tests {
         let state = AudioRecorderState::new();
         assert!(state.recording.lock().unwrap().is_none());
         assert!(state.wav_buffer.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_audio_preview_state_new() {
+        let state = AudioPreviewState::new();
+        assert!(state.handle.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn test_audio_preview_state_shutdown_no_panic() {
+        let state = AudioPreviewState::new();
+        state.shutdown(); // 無 handle 時 shutdown 不 panic
+    }
+
+    #[test]
+    fn test_audio_preview_state_double_shutdown() {
+        let state = AudioPreviewState::new();
+        // 模擬有 active preview（不含 thread，僅測試 flag + take 行為）
+        {
+            let mut guard = state.handle.lock().unwrap();
+            *guard = Some(PreviewHandle {
+                should_stop: Arc::new(AtomicBool::new(false)),
+                thread: None,
+            });
+        }
+        state.shutdown(); // take() + set flag
+        state.shutdown(); // handle 已 None，不 panic
+    }
+
+    #[test]
+    fn test_audio_preview_state_stop_flag_propagation() {
+        let state = AudioPreviewState::new();
+        let flag = Arc::new(AtomicBool::new(false));
+        {
+            let mut guard = state.handle.lock().unwrap();
+            *guard = Some(PreviewHandle {
+                should_stop: flag.clone(),
+                thread: None,
+            });
+        }
+        state.shutdown();
+        assert!(flag.load(Ordering::SeqCst));
+        // shutdown uses take(), so handle should be None now
+        assert!(state.handle.lock().unwrap().is_none());
     }
 }

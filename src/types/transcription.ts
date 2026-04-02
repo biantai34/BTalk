@@ -17,6 +17,8 @@ export interface TranscriptionRecord {
   createdAt: string;
   audioFilePath: string | null;
   status: TranscriptionStatus;
+  isEditMode: boolean;
+  editSourceText: string | null;
 }
 
 export interface DailyQuotaUsage {
@@ -42,9 +44,9 @@ export interface ChatUsageData {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
-  promptTimeMs: number;
-  completionTimeMs: number;
-  totalTimeMs: number;
+  promptTimeMs?: number;
+  completionTimeMs?: number;
+  totalTimeMs?: number;
 }
 
 export interface EnhanceResult {

@@ -31,6 +31,9 @@
       "modeUpdated": "トリガーモードが更新されました",
       "keySet": "トリガーキーを {key} に設定しました",
       "customKeyDisplay": "カスタムキー ({keycode})",
+      "doubleTapHint": "長押しモードで、トリガーキーを素早く2回押すと音声モードを切り替えます",
+      "longPressHint": "トグルモードで、トリガーキーを1秒以上長押しすると音声モードを切り替えます",
+      "comboKey": "コンボキー",
       "keys": {
         "fn": "Fn",
         "leftOption": "左 Option (\u2325)",
@@ -45,11 +48,11 @@
       }
     },
     "apiKey": {
-      "title": "Groq API Key",
+      "title": "Groq API Key（音声認識 + Groq LLM）",
       "set": "設定済み",
       "notSet": "未設定",
       "goToConsole": "Groq Console へ",
-      "instruction": "Groq Console で API Key を生成し、貼り付けてください。",
+      "instruction": "このキーは音声認識（Whisper）に使用します。LLM プロバイダーが Groq の場合、テキスト整理にも使用されます。",
       "onboarding": "SayIt へようこそ！音声入力を有効にするには、まず Groq API Key を設定してください。",
       "show": "表示",
       "hide": "非表示",
@@ -57,6 +60,26 @@
       "deleted": "API Key を削除しました",
       "confirmDelete": "削除してよろしいですか？",
       "delete": "API Key を削除"
+    },
+    "provider": {
+      "title": "LLM プロバイダー",
+      "description": "テキスト整理と辞書分析に使用する AI サービスを選択します。Groq と Gemini は無料枠あり、OpenAI と Anthropic は有料です。",
+      "groq": "Groq（無料）",
+      "openai": "OpenAI（おすすめ）",
+      "anthropic": "Anthropic",
+      "gemini": "Google Gemini（無料枠あり）",
+      "groqNote": "上記の Groq API Key を使用"
+    },
+    "providerApiKey": {
+      "openaiTitle": "OpenAI API Key",
+      "anthropicTitle": "Anthropic API Key",
+      "openaiInstruction": "OpenAI Platform で API Key を取得",
+      "anthropicInstruction": "Anthropic Console で API Key を取得",
+      "goToOpenai": "OpenAI Platform へ",
+      "goToAnthropic": "Anthropic Console へ",
+      "geminiTitle": "Gemini API Key",
+      "geminiInstruction": "Google AI Studio で API Key を取得してください（無料枠あり）",
+      "goToGemini": "Google AI Studio へ"
     },
     "model": {
       "title": "モデル選択",
@@ -72,7 +95,8 @@
       "balanced": "バランス · デフォルト",
       "stableCostly": "安定 · 高コスト",
       "fastCheap": "最速 · 最安",
-      "smartestSlow": "最賢 · 低速"
+      "smartestSlow": "最賢 · 低速",
+      "premium": "高品質"
     },
     "prompt": {
       "title": "AI 整理 Prompt",
@@ -125,6 +149,8 @@
       "description": "録音に使用するマイクを選択",
       "deviceLabel": "マイク",
       "systemDefault": "システムデフォルト",
+      "systemDefaultWithDevice": "システムデフォルト（{device}）",
+      "volumePreview": "マイク音量プレビュー",
       "refresh": "更新",
       "refreshed": "{count} 個のデバイスを検出しました",
       "updated": "入力デバイスを更新しました"
@@ -148,8 +174,6 @@
       "title": "スマート辞書学習",
       "description": "貼り付け後に修正を自動検出し、AI 分析で新語を学習",
       "privacyNote": "有効にすると、AI 分析のためにカーソル付近のテキストを読み取ります。原文は保存されません",
-      "analysisModelLabel": "辞書分析モデル",
-      "analysisModelDescription": "修正された語彙を辞書に追加すべきかを判断する AI モデル（テキスト整理モデルとは独立）",
       "analysisModelUpdated": "辞書分析モデルを更新しました"
     }
   },
@@ -240,18 +264,27 @@
     "pasteSuccessUnenhanced": "貼り付け完了（未整理）",
     "enhancing": "整理中...",
     "pasteFailed": "貼り付け失敗",
+    "editMode": "編集",
+    "editing": "編集中...",
+    "editSuccess": "編集完了 ✓",
+    "editFailed": "編集失敗",
     "recordingTooShort": "録音時間が短すぎます",
     "vocabularyLearnedLabel": "辞書に追加",
     "vocabularyLearned": "{terms}",
     "vocabularyLearnedTruncated": "{terms} 他 {count} 語",
     "retryFailed": "認識失敗、もう一度録音してください",
-    "cancelled": "キャンセル"
+    "cancelled": "キャンセル",
+    "modeSwitched": "{mode}モードに切り替えました",
+    "commandMode": "コマンド"
   },
   "errors": {
     "databaseInitFailed": "データベースの初期化に失敗しました。履歴が一時的に使用できません。アプリを再起動してください。",
     "apiKeyEmpty": "API Key は空にできません",
     "promptEmpty": "Prompt は空にできません",
     "apiKeyNotSet": "API Key が未設定です",
+    "openaiApiKeyNotSet": "OpenAI API Key が未設定です",
+    "anthropicApiKeyNotSet": "Anthropic API Key が未設定です",
+    "providerAuthFailed": "API Key の認証に失敗しました（{provider}）",
     "enhancementTimeout": "AI 整理がタイムアウトしました",
     "apiKeyMissing": "API Key を設定してください",
     "mic": {
@@ -263,6 +296,7 @@
     },
     "network": "ネットワーク接続が切断されました",
     "transcription": {
+      "fileTooLarge": "録音ファイルが大きすぎます。録音時間を短くしてください",
       "invalidAudio": "音声ファイルの形式が無効、または録音データが不完全です",
       "invalidApiKey": "API Key が無効または期限切れです",
       "rateLimited": "リクエストが多すぎます。しばらくしてから再試行してください",
@@ -305,7 +339,8 @@
       "dashboard": "ダッシュボード",
       "history": "履歴",
       "dictionary": "カスタム辞書",
-      "settings": "設定"
+      "settings": "設定",
+      "guide": "機能ガイド"
     },
     "update": {
       "installFailed": "インストールに失敗しました。手動でアップデートをダウンロードしてください",
@@ -330,12 +365,53 @@
     },
     "upgradeNotice": {
       "title": "SayIt アップデート概要",
-      "item1": "1. マイク選択機能：設定で録音に使用する入力デバイスを指定可能に",
-      "item2": "2. 小声の誤判定を改善：peak energy エスケープ機構で誤報を低減",
-      "item3": "3. AI 整理の安定性向上：ランダム性を低減、異常結果は自動リトライ",
-      "item4": "4. AI 整理が語調を保持：疑問文が平叙文に書き換えられなくなりました",
-      "item5": "5. マイクエラーメッセージを改善：デバイス未検出・使用中などを正確に表示",
+      "item1": "LLM の選択肢追加：Google Gemini（無料枠あり）、OpenAI（おすすめ）、Anthropic を追加。Groq の無料モデルで精度が足りない場合、設定で Provider を切り替えると体感がかなり変わります",
+      "item2": "選択テキスト編集：テキストを選択してから SayIt を起動すると、音声が指示に変わります。「英語に翻訳して」「もっとフォーマルに」と言えば、AI が直接処理して置き換えます",
+      "item3": "コンボキー対応：⌘+J などの組み合わせキーで録音を開始でき、誤操作を防止",
+      "item4": "素早いモード切替：ダブルタップまたは長押しで、設定画面を開かずに簡潔と積極を切替",
+      "item5": "マイク選択の改善：デフォルトデバイス名と音量プレビューバーを表示",
+      "item6": "録音中にモード確認：ノッチに現在の音声モードが表示されます",
+      "item7": "切替時の確認表示：モード切替後、画面上部に新しいモード名が表示されます",
+      "item8": "トグルモードの貼り付け修正：特定状況でテキストが二重に貼り付けられる問題を修正",
+      "item9": "ご利用について：現在は短い口述の高速文字起こし向けに設計されています。長時間の会議録音には未対応ですが、今後対応予定です",
       "dismiss": "了解"
+    }
+  },
+  "featureGuide": {
+    "subtitle": "SayIt で利用できるすべての機能を紹介します。",
+    "voiceInput": {
+      "title": "音声入力",
+      "description": "タイピングが面倒？話すだけで OK。ホットキーを押しながら話して、離すと AI が自動で整理してカーソル位置に貼り付けます。メッセージ、メモ、メールなど何でも使えます。",
+      "steps": "操作：ホットキーを押す → 話す → 離す → テキストが自動貼り付け"
+    },
+    "editSelection": {
+      "title": "選択テキスト編集",
+      "description": "翻訳したい文章を見つけたら、選択してホットキーを押し、「日本語に翻訳して」と言うだけ。「もっと丁寧に」「一文にまとめて」なども OK。AI が編集して元の場所に戻します。",
+      "steps": "操作：テキストを選択 → ホットキー → どう変えたいか話す → 編集済みテキストが元に戻る"
+    },
+    "hotkey": {
+      "title": "ホットキー設定",
+      "description": "誤操作が心配？⌘+J のようなコンボキーに設定すれば、2 つのキーを同時に押した時だけ起動します。単一キーでもOK。設定からいつでも変更できます。"
+    },
+    "triggerMode": {
+      "title": "トリガーモード",
+      "description": "2 つのスタイル：「押しっぱなし」はトランシーバーのように、押している間だけ録音。「タップで開始」は長い話に向いていて、1 回押すと開始、もう 1 回押すと停止します。"
+    },
+    "quickModeSwitch": {
+      "title": "クイックモード切替",
+      "description": "AI の整理具合を変えたい？ホットキーをダブルタップするだけで、簡潔モードと積極モードを切り替えられます。画面に確認が表示されるので、設定を開く必要はありません。"
+    },
+    "promptMode": {
+      "title": "AI 処理モード",
+      "description": "「簡潔」は誤字修正と句読点追加だけ。元の言葉をほぼそのまま残します。「積極」はさらにレイアウトも整えて読みやすく。もっと自分好みに？「カスタム」で AI への指示を自由に書けます。"
+    },
+    "dictionary": {
+      "title": "カスタム辞書",
+      "description": "固有名詞やブランド名を追加すると、AI が正しい表記を優先します。スマート学習を有効にすると、修正から自動的に新語を収集します。"
+    },
+    "history": {
+      "title": "履歴",
+      "description": "すべての文字起こし結果が保存されます。検索、テキストコピー、削除、録音の再生が可能です。"
     }
   }
 }

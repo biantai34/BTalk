@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { invoke } from "@tauri-apps/api/core";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import {
   useSettingsStore,
   DEFAULT_ENHANCEMENT_THRESHOLD_ENABLED,
@@ -10,21 +12,35 @@ import { extractErrorMessage } from "../lib/errorUtils";
 import { useFeedbackMessage } from "../composables/useFeedbackMessage";
 import { useHistoryStore } from "../stores/useHistoryStore";
 import {
+  listenToEvent,
+  HOTKEY_RECORDING_CAPTURED,
+  HOTKEY_RECORDING_REJECTED,
+} from "../composables/useTauriEvents";
+import {
   type PresetTriggerKey,
+  type ComboTriggerKey,
   isCustomTriggerKey,
+  isComboTriggerKey,
 } from "../types/settings";
+import type {
+  RecordingCapturedPayload,
+  RecordingRejectedPayload,
+} from "../types/events";
 import type { TriggerMode } from "../types";
 import {
-  LLM_MODEL_LIST,
-  VOCABULARY_ANALYSIS_MODEL_LIST,
+  getDomCodeByKeycode,
+  getKeyDisplayNameByKeycode,
+} from "../lib/keycodeMap";
+import {
   WHISPER_MODEL_LIST,
   findLlmModelConfig,
-  findVocabularyAnalysisModelConfig,
   findWhisperModelConfig,
+  getModelListByProvider,
   type LlmModelId,
-  type VocabularyAnalysisModelId,
+  type LlmProviderId,
   type WhisperModelId,
 } from "../lib/modelRegistry";
+import { LLM_PROVIDER_LIST, findProviderConfig } from "../lib/llmProvider";
 import {
   LANGUAGE_OPTIONS,
   TRANSCRIPTION_LANGUAGE_OPTIONS,
@@ -72,11 +88,12 @@ import {
   Github,
   Globe,
   Instagram,
+  Mic,
   RefreshCw,
   Trash2,
 } from "lucide-vue-next";
-import { invoke } from "@tauri-apps/api/core";
 import type { AudioInputDeviceInfo } from "../types/audio";
+import { useAudioPreview } from "../composables/useAudioPreview";
 
 const settingsStore = useSettingsStore();
 const historyStore = useHistoryStore();
@@ -116,6 +133,10 @@ let recordingTimeoutId: ReturnType<typeof setTimeout> | undefined;
 const RECORDING_TIMEOUT_MS = 10_000;
 
 const currentCustomKeyDisplay = computed(() => {
+  const key = settingsStore.hotkeyConfig?.triggerKey;
+  if (key && isComboTriggerKey(key)) {
+    return settingsStore.getTriggerKeyDisplayName(key);
+  }
   if (!settingsStore.customTriggerKeyDomCode) return "";
   return settingsStore.getKeyDisplayName(settingsStore.customTriggerKeyDomCode);
 });
@@ -124,71 +145,108 @@ const hasCustomKey = computed(() => settingsStore.customTriggerKey !== null);
 
 const currentPresetKey = computed(() => {
   const key = settingsStore.hotkeyConfig?.triggerKey;
-  if (!key || isCustomTriggerKey(key)) return isMac ? "fn" : "rightAlt";
+  if (!key || isCustomTriggerKey(key) || isComboTriggerKey(key)) return isMac ? "fn" : "rightAlt";
   return key;
 });
 
-async function handleKeydownForRecording(event: KeyboardEvent) {
-  event.preventDefault();
-  event.stopPropagation();
+let recordingUnlisteners: UnlistenFn[] = [];
 
-  // ESC 已保留為全域中斷鍵，拒絕設定並顯示錯誤
-  if (event.code === "Escape") {
-    hotkeyFeedback.show("error", settingsStore.getEscapeReservedMessage());
-    stopKeyRecording();
-    return;
-  }
-
-  const domCode = event.code;
-  const keycode = settingsStore.getPlatformKeycode(domCode);
-
-  if (keycode === null) {
-    hotkeyFeedback.show("error", settingsStore.getHotkeyUnsupportedKeyMessage());
-    stopKeyRecording();
-    return;
-  }
-
+async function handleRecordingCaptured(payload: RecordingCapturedPayload) {
+  const { keycode, modifiers } = payload;
   recordingWarning.value = "";
   recordingHint.value = "";
 
-  const isPresetEquivalent = settingsStore.isPresetEquivalentKey(domCode);
-
-  // Check dangerous key (R17: skip danger warning if preset-equivalent)
-  if (!isPresetEquivalent) {
-    const dangerWarning = settingsStore.getDangerousKeyWarning(domCode);
-    if (dangerWarning) {
-      recordingWarning.value = dangerWarning;
-    }
-  }
-
-  // Check preset equivalent
-  if (isPresetEquivalent) {
-    recordingHint.value = settingsStore.getHotkeyPresetHint();
-  }
-
-  // Save the custom key (R15: await instead of fire-and-forget)
   const currentMode = settingsStore.triggerMode;
   stopKeyRecording();
-  try {
-    await settingsStore.saveCustomTriggerKey(keycode, domCode, currentMode);
-    hotkeyFeedback.show("success", t("settings.hotkey.keySet", { key: settingsStore.getKeyDisplayName(domCode) }));
-  } catch (err) {
-    hotkeyFeedback.show("error", extractErrorMessage(err));
+
+  const domCode = getDomCodeByKeycode(keycode);
+
+  if (modifiers.length > 0) {
+    // Combo key: modifier(s) + primary key
+    if (domCode) {
+      const dangerWarning = settingsStore.getDangerousKeyWarning(domCode);
+      if (dangerWarning) {
+        recordingWarning.value = dangerWarning;
+      }
+    }
+
+    const comboKey: ComboTriggerKey = {
+      combo: { modifiers, keycode },
+    };
+    try {
+      await settingsStore.saveComboTriggerKey(comboKey, domCode ?? "", currentMode);
+      hotkeyFeedback.show(
+        "success",
+        t("settings.hotkey.keySet", { key: settingsStore.getTriggerKeyDisplayName(comboKey) }),
+      );
+    } catch (err) {
+      hotkeyFeedback.show("error", extractErrorMessage(err));
+    }
+  } else {
+    // Single key
+    const isPresetEquivalent = domCode ? settingsStore.isPresetEquivalentKey(domCode) : false;
+
+    if (domCode && !isPresetEquivalent) {
+      const dangerWarning = settingsStore.getDangerousKeyWarning(domCode);
+      if (dangerWarning) {
+        recordingWarning.value = dangerWarning;
+      }
+    }
+
+    if (isPresetEquivalent) {
+      recordingHint.value = settingsStore.getHotkeyPresetHint();
+    }
+
+    try {
+      await settingsStore.saveCustomTriggerKey(keycode, domCode ?? "", currentMode);
+      const displayName = domCode
+        ? settingsStore.getKeyDisplayName(domCode)
+        : getKeyDisplayNameByKeycode(keycode);
+      hotkeyFeedback.show(
+        "success",
+        t("settings.hotkey.keySet", { key: displayName }),
+      );
+    } catch (err) {
+      hotkeyFeedback.show("error", extractErrorMessage(err));
+    }
   }
 }
 
-function startRecording() {
+function handleRecordingRejected(payload: RecordingRejectedPayload) {
+  stopKeyRecording();
+  if (payload.reason === "esc_reserved") {
+    hotkeyFeedback.show("error", settingsStore.getEscapeReservedMessage());
+  }
+}
+
+async function startRecording() {
   isRecording.value = true;
   recordingWarning.value = "";
   recordingHint.value = "";
 
-  // Dynamic keydown listener (Review F11)
-  document.addEventListener("keydown", handleKeydownForRecording, {
-    capture: true,
-    once: true,
-  });
+  // Tell Rust to enter recording mode
+  try {
+    await invoke("start_hotkey_recording");
+  } catch (err) {
+    hotkeyFeedback.show("error", extractErrorMessage(err));
+    isRecording.value = false;
+    return;
+  }
 
-  // 10s timeout (Review F3)
+  // Listen for Rust recording events
+  const [unlistenCaptured, unlistenRejected] = await Promise.all([
+    listenToEvent<RecordingCapturedPayload>(
+      HOTKEY_RECORDING_CAPTURED,
+      (event) => void handleRecordingCaptured(event.payload),
+    ),
+    listenToEvent<RecordingRejectedPayload>(
+      HOTKEY_RECORDING_REJECTED,
+      (event) => handleRecordingRejected(event.payload),
+    ),
+  ]);
+  recordingUnlisteners = [unlistenCaptured, unlistenRejected];
+
+  // 10s timeout
   recordingTimeoutId = setTimeout(() => {
     if (isRecording.value) {
       hotkeyFeedback.show("error", settingsStore.getHotkeyRecordingTimeoutMessage());
@@ -198,11 +256,16 @@ function startRecording() {
 }
 
 function stopKeyRecording() {
+  if (!isRecording.value) return;
   isRecording.value = false;
   clearTimeout(recordingTimeoutId);
-  document.removeEventListener("keydown", handleKeydownForRecording, {
-    capture: true,
-  });
+  // Cancel Rust recording mode
+  void invoke("cancel_hotkey_recording").catch(() => {});
+  // Clean up event listeners
+  for (const unlisten of recordingUnlisteners) {
+    unlisten();
+  }
+  recordingUnlisteners = [];
 }
 
 function switchToCustom() {
@@ -452,8 +515,13 @@ const whisperModelDescription = computed(() => {
 const llmModelDescription = computed(() => {
   const config = findLlmModelConfig(settingsStore.selectedLlmModelId);
   if (!config) return "";
-  return `${config.speedTps} TPS · $${config.inputCostPerMillion}/$${config.outputCostPerMillion} per M tokens`;
+  const tpsInfo = config.speedTps > 0 ? `${config.speedTps} TPS · ` : "";
+  return `${tpsInfo}$${config.inputCostPerMillion}/$${config.outputCostPerMillion} per M tokens`;
 });
+
+const providerModelList = computed(() =>
+  getModelListByProvider(settingsStore.selectedLlmProviderId),
+);
 
 async function handleWhisperModelChange(newId: WhisperModelId) {
   try {
@@ -470,6 +538,81 @@ async function handleLlmModelChange(newId: LlmModelId) {
     modelFeedback.show("success", t("settings.model.llmUpdated"));
   } catch (err) {
     modelFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+// ── LLM Provider ────────────────────────────────────────────
+const providerFeedback = useFeedbackMessage();
+const openaiApiKeyInput = ref("");
+const anthropicApiKeyInput = ref("");
+const geminiApiKeyInput = ref("");
+const isOpenaiApiKeyVisible = ref(false);
+const isAnthropicApiKeyVisible = ref(false);
+const isGeminiApiKeyVisible = ref(false);
+
+async function handleProviderChange(providerId: LlmProviderId) {
+  try {
+    await settingsStore.saveLlmProvider(providerId);
+    providerFeedback.show("success", t("settings.model.llmUpdated"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleSaveOpenaiApiKey() {
+  try {
+    await settingsStore.saveOpenaiApiKey(openaiApiKeyInput.value);
+    openaiApiKeyInput.value = "";
+    providerFeedback.show("success", t("settings.apiKey.saved"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleDeleteOpenaiApiKey() {
+  try {
+    await settingsStore.deleteOpenaiApiKey();
+    providerFeedback.show("success", t("settings.apiKey.deleted"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleSaveAnthropicApiKey() {
+  try {
+    await settingsStore.saveAnthropicApiKey(anthropicApiKeyInput.value);
+    anthropicApiKeyInput.value = "";
+    providerFeedback.show("success", t("settings.apiKey.saved"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleDeleteAnthropicApiKey() {
+  try {
+    await settingsStore.deleteAnthropicApiKey();
+    providerFeedback.show("success", t("settings.apiKey.deleted"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleSaveGeminiApiKey() {
+  try {
+    await settingsStore.saveGeminiApiKey(geminiApiKeyInput.value);
+    geminiApiKeyInput.value = "";
+    providerFeedback.show("success", t("settings.apiKey.saved"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
+  }
+}
+
+async function handleDeleteGeminiApiKey() {
+  try {
+    await settingsStore.deleteGeminiApiKey();
+    providerFeedback.show("success", t("settings.apiKey.deleted"));
+  } catch (err) {
+    providerFeedback.show("error", extractErrorMessage(err));
   }
 }
 
@@ -531,32 +674,10 @@ async function handleTranscriptionLocaleChange(newLocale: TranscriptionLocale) {
 // ── 智慧字典學習 ────────────────────────────────────────────
 const smartDictionaryFeedback = useFeedbackMessage();
 
-const vocabularyAnalysisModelDescription = computed(() => {
-  const config = findVocabularyAnalysisModelConfig(
-    settingsStore.selectedVocabularyAnalysisModelId,
-  );
-  if (!config) return "";
-  return `${config.speedTps} TPS · $${config.inputCostPerMillion}/$${config.outputCostPerMillion} per M tokens`;
-});
-
 async function handleToggleSmartDictionary(newValue: boolean) {
   try {
     await settingsStore.saveSmartDictionaryEnabled(newValue);
     smartDictionaryFeedback.show("success", t("common.save"));
-  } catch (err) {
-    smartDictionaryFeedback.show("error", extractErrorMessage(err));
-  }
-}
-
-async function handleVocabularyAnalysisModelChange(
-  newId: VocabularyAnalysisModelId,
-) {
-  try {
-    await settingsStore.saveVocabularyAnalysisModel(newId);
-    smartDictionaryFeedback.show(
-      "success",
-      t("settings.smartDictionary.analysisModelUpdated"),
-    );
   } catch (err) {
     smartDictionaryFeedback.show("error", extractErrorMessage(err));
   }
@@ -637,13 +758,18 @@ async function handleToggleAutoStart() {
 
 // ── 輸入裝置 ──────────────────────────────────────────────
 const audioInputDeviceList = ref<AudioInputDeviceInfo[]>([]);
+const defaultInputDeviceName = ref<string | null>(null);
 const isRefreshingDeviceList = ref(false);
 const audioInputFeedback = useFeedbackMessage();
+const { previewLevel, isPreviewActive, startPreview, stopPreview } =
+  useAudioPreview();
 
 async function loadAudioInputDeviceList() {
   try {
     audioInputDeviceList.value =
       await invoke<AudioInputDeviceInfo[]>("list_audio_input_devices");
+    defaultInputDeviceName.value =
+      await invoke<string | null>("get_default_input_device_name");
   } catch (err) {
     console.error(
       "[SettingsView] Failed to list audio input devices:",
@@ -662,6 +788,7 @@ async function handleRefreshAudioInputDeviceList() {
         count: audioInputDeviceList.value.length,
       }),
     );
+    void startPreview(settingsStore.selectedAudioInputDeviceName);
   } catch (err) {
     audioInputFeedback.show("error", extractErrorMessage(err));
   } finally {
@@ -673,13 +800,17 @@ async function handleAudioInputDeviceChange(deviceName: string) {
   try {
     await settingsStore.saveAudioInputDevice(deviceName);
     audioInputFeedback.show("success", t("settings.audioInput.updated"));
+    void startPreview(deviceName);
   } catch (err) {
     audioInputFeedback.show("error", extractErrorMessage(err));
   }
 }
 
 onMounted(async () => {
-  void loadAudioInputDeviceList();
+  // F5 fix: 先載入裝置列表，完成後再啟動預覽（避免 cpal 並行 host 查詢）
+  void loadAudioInputDeviceList().then(() => {
+    void startPreview(settingsStore.selectedAudioInputDeviceName);
+  });
   selectedPromptMode.value = settingsStore.promptMode;
   promptInput.value = settingsStore.getAiPrompt();
   isPresetDirty.value = false;
@@ -694,14 +825,15 @@ onMounted(async () => {
   recordingAutoCleanupDays.value = settingsStore.recordingAutoCleanupDays;
   await settingsStore.loadAutoStartStatus();
 
-  // Detect if current key is custom
+  // Detect if current key is custom or combo
   const currentKey = settingsStore.hotkeyConfig?.triggerKey;
-  if (currentKey && isCustomTriggerKey(currentKey)) {
+  if (currentKey && (isCustomTriggerKey(currentKey) || isComboTriggerKey(currentKey))) {
     isCustomMode.value = true;
   }
 });
 
 onBeforeUnmount(() => {
+  void stopPreview();
   stopKeyRecording();
   hotkeyFeedback.clearTimer();
   apiKeyFeedback.clearTimer();
@@ -715,6 +847,7 @@ onBeforeUnmount(() => {
   autoStartFeedback.clearTimer();
   smartDictionaryFeedback.clearTimer();
   recordingCleanupFeedback.clearTimer();
+  providerFeedback.clearTimer();
   clearTimeout(deleteConfirmTimeoutId);
   clearTimeout(resetPromptConfirmTimeoutId);
 });
@@ -903,6 +1036,14 @@ onBeforeUnmount(() => {
           }}
         </p>
 
+        <p class="text-xs text-muted-foreground">
+          {{
+            settingsStore.triggerMode === "hold"
+              ? $t("settings.hotkey.doubleTapHint")
+              : $t("settings.hotkey.longPressHint")
+          }}
+        </p>
+
         <transition name="feedback-fade">
           <p
             v-if="hotkeyFeedback.message.value !== ''"
@@ -1044,31 +1185,179 @@ onBeforeUnmount(() => {
           <p class="text-xs text-muted-foreground">{{ whisperModelDescription }}</p>
         </div>
 
-        <!-- LLM 模型 -->
-        <div class="space-y-2">
-          <Label for="llm-model">{{ $t("settings.model.llmLabel") }}</Label>
-          <Select
-            :model-value="settingsStore.selectedLlmModelId"
-            @update:model-value="handleLlmModelChange($event as LlmModelId)"
+        <Separator />
+
+        <!-- LLM Provider 選擇 -->
+        <div class="space-y-3">
+          <Label>{{ $t("settings.provider.title") }}</Label>
+          <p class="text-xs text-muted-foreground">{{ $t("settings.provider.description") }}</p>
+          <RadioGroup
+            :model-value="settingsStore.selectedLlmProviderId"
+            class="grid grid-cols-2 gap-2"
+            @update:model-value="(v: unknown) => handleProviderChange(v as LlmProviderId)"
           >
-            <SelectTrigger id="llm-model" class="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="model in LLM_MODEL_LIST"
-                :key="model.id"
-                :value="model.id"
-              >
-                {{ model.displayName }}
-                <template #extra>
-                  <Badge variant="secondary" class="ml-2 text-xs">{{ $t(model.badgeKey) }}</Badge>
-                </template>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-xs text-muted-foreground">{{ llmModelDescription }}</p>
+            <Label
+              v-for="provider in LLM_PROVIDER_LIST"
+              :key="provider.id"
+              :for="`provider-${provider.id}`"
+              class="flex cursor-pointer items-center gap-2.5 rounded-md border border-border p-3 transition-colors"
+              :class="settingsStore.selectedLlmProviderId === provider.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'"
+            >
+              <RadioGroupItem :id="`provider-${provider.id}`" :value="provider.id" class="!size-0 !border-0 !shadow-none overflow-hidden" />
+              <span class="text-sm font-medium">{{ $t(`settings.provider.${provider.id}`) }}</span>
+            </Label>
+          </RadioGroup>
         </div>
+
+        <!-- Provider-specific API Key -->
+        <div v-if="settingsStore.selectedLlmProviderId === 'groq'" class="rounded-md bg-muted/50 p-3">
+          <p class="text-xs text-muted-foreground">{{ $t("settings.provider.groqNote") }}</p>
+        </div>
+
+        <div v-else-if="settingsStore.selectedLlmProviderId === 'openai'" class="space-y-2">
+          <Label for="openai-api-key">{{ $t("settings.providerApiKey.openaiTitle") }}</Label>
+          <div v-if="settingsStore.openaiApiKey" class="flex items-center gap-2">
+            <Input
+              id="openai-api-key"
+              :model-value="isOpenaiApiKeyVisible ? settingsStore.openaiApiKey : '••••••••••'"
+              readonly
+              class="flex-1 font-mono text-xs"
+            />
+            <Button variant="ghost" size="sm" @click="isOpenaiApiKeyVisible = !isOpenaiApiKeyVisible">
+              {{ isOpenaiApiKeyVisible ? $t('settings.apiKey.hide') : $t('settings.apiKey.show') }}
+            </Button>
+            <Button variant="ghost" size="sm" class="text-destructive" @click="handleDeleteOpenaiApiKey">
+              {{ $t('settings.apiKey.delete') }}
+            </Button>
+          </div>
+          <div v-else class="flex gap-2">
+            <Input
+              id="openai-api-key"
+              v-model="openaiApiKeyInput"
+              type="password"
+              :placeholder="findProviderConfig('openai')?.apiKeyPrefix + '...'"
+              class="flex-1 font-mono text-xs"
+            />
+            <Button size="sm" :disabled="!openaiApiKeyInput.trim()" @click="handleSaveOpenaiApiKey">
+              {{ $t('common.save') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ $t("settings.providerApiKey.openaiInstruction") }}
+            ·
+            <a :href="findProviderConfig('openai')?.consoleUrl" target="_blank" rel="noopener noreferrer" class="underline">{{ $t("settings.providerApiKey.goToOpenai") }}</a>
+          </p>
+        </div>
+
+        <div v-else-if="settingsStore.selectedLlmProviderId === 'anthropic'" class="space-y-2">
+          <Label for="anthropic-api-key">{{ $t("settings.providerApiKey.anthropicTitle") }}</Label>
+          <div v-if="settingsStore.anthropicApiKey" class="flex items-center gap-2">
+            <Input
+              id="anthropic-api-key"
+              :model-value="isAnthropicApiKeyVisible ? settingsStore.anthropicApiKey : '••••••••••'"
+              readonly
+              class="flex-1 font-mono text-xs"
+            />
+            <Button variant="ghost" size="sm" @click="isAnthropicApiKeyVisible = !isAnthropicApiKeyVisible">
+              {{ isAnthropicApiKeyVisible ? $t('settings.apiKey.hide') : $t('settings.apiKey.show') }}
+            </Button>
+            <Button variant="ghost" size="sm" class="text-destructive" @click="handleDeleteAnthropicApiKey">
+              {{ $t('settings.apiKey.delete') }}
+            </Button>
+          </div>
+          <div v-else class="flex gap-2">
+            <Input
+              id="anthropic-api-key"
+              v-model="anthropicApiKeyInput"
+              type="password"
+              :placeholder="findProviderConfig('anthropic')?.apiKeyPrefix + '...'"
+              class="flex-1 font-mono text-xs"
+            />
+            <Button size="sm" :disabled="!anthropicApiKeyInput.trim()" @click="handleSaveAnthropicApiKey">
+              {{ $t('common.save') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ $t("settings.providerApiKey.anthropicInstruction") }}
+            ·
+            <a :href="findProviderConfig('anthropic')?.consoleUrl" target="_blank" rel="noopener noreferrer" class="underline">{{ $t("settings.providerApiKey.goToAnthropic") }}</a>
+          </p>
+        </div>
+
+        <div v-else-if="settingsStore.selectedLlmProviderId === 'gemini'" class="space-y-2">
+          <Label for="gemini-api-key">{{ $t("settings.providerApiKey.geminiTitle") }}</Label>
+          <div v-if="settingsStore.geminiApiKey" class="flex items-center gap-2">
+            <Input
+              id="gemini-api-key"
+              :model-value="isGeminiApiKeyVisible ? settingsStore.geminiApiKey : '••••••••••'"
+              readonly
+              class="flex-1 font-mono text-xs"
+            />
+            <Button variant="ghost" size="sm" @click="isGeminiApiKeyVisible = !isGeminiApiKeyVisible">
+              {{ isGeminiApiKeyVisible ? $t('settings.apiKey.hide') : $t('settings.apiKey.show') }}
+            </Button>
+            <Button variant="ghost" size="sm" class="text-destructive" @click="handleDeleteGeminiApiKey">
+              {{ $t('settings.apiKey.delete') }}
+            </Button>
+          </div>
+          <div v-else class="flex gap-2">
+            <Input
+              id="gemini-api-key"
+              v-model="geminiApiKeyInput"
+              type="password"
+              :placeholder="findProviderConfig('gemini')?.apiKeyPrefix + '...'"
+              class="flex-1 font-mono text-xs"
+            />
+            <Button size="sm" :disabled="!geminiApiKeyInput.trim()" @click="handleSaveGeminiApiKey">
+              {{ $t('common.save') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted-foreground">
+            {{ $t("settings.providerApiKey.geminiInstruction") }}
+            ·
+            <a :href="findProviderConfig('gemini')?.consoleUrl" target="_blank" rel="noopener noreferrer" class="underline">{{ $t("settings.providerApiKey.goToGemini") }}</a>
+          </p>
+        </div>
+
+        <transition name="feedback-fade">
+          <p
+            v-if="providerFeedback.message.value !== ''"
+            class="text-sm"
+            :class="providerFeedback.type.value === 'success' ? 'text-green-400' : 'text-red-400'"
+          >
+            {{ providerFeedback.message.value }}
+          </p>
+        </transition>
+
+        <template v-if="settingsStore.selectedLlmProviderId === 'groq' || settingsStore.hasLlmApiKey">
+          <Separator />
+
+          <!-- LLM 模型 -->
+          <div class="space-y-2">
+            <Label for="llm-model">{{ $t("settings.model.llmLabel") }}</Label>
+            <Select
+              :model-value="settingsStore.selectedLlmModelId"
+              @update:model-value="handleLlmModelChange($event as LlmModelId)"
+            >
+              <SelectTrigger id="llm-model" class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem
+                  v-for="model in providerModelList"
+                  :key="model.id"
+                  :value="model.id"
+                >
+                  {{ model.displayName }}
+                  <template #extra>
+                    <Badge variant="secondary" class="ml-2 text-xs">{{ $t(model.badgeKey) }}</Badge>
+                  </template>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p class="text-xs text-muted-foreground">{{ llmModelDescription }}</p>
+          </div>
+        </template>
 
         <transition name="feedback-fade">
           <p
@@ -1254,35 +1543,6 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <!-- 字典分析模型 -->
-        <div v-if="settingsStore.isSmartDictionaryEnabled" class="space-y-2">
-          <Label for="vocabulary-analysis-model">{{ $t("settings.smartDictionary.analysisModelLabel") }}</Label>
-          <Select
-            :model-value="settingsStore.selectedVocabularyAnalysisModelId"
-            @update:model-value="handleVocabularyAnalysisModelChange($event as VocabularyAnalysisModelId)"
-          >
-            <SelectTrigger id="vocabulary-analysis-model" class="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="model in VOCABULARY_ANALYSIS_MODEL_LIST"
-                :key="model.id"
-                :value="model.id"
-              >
-                {{ model.displayName }}
-                <template #extra>
-                  <Badge variant="secondary" class="ml-2 text-xs">{{ $t(model.badgeKey) }}</Badge>
-                </template>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <p class="text-xs text-muted-foreground">
-            {{ $t("settings.smartDictionary.analysisModelDescription") }}
-          </p>
-          <p class="text-xs text-muted-foreground">{{ vocabularyAnalysisModelDescription }}</p>
-        </div>
-
         <p class="text-xs text-muted-foreground">
           {{ $t("settings.smartDictionary.privacyNote") }}
         </p>
@@ -1324,7 +1584,13 @@ onBeforeUnmount(() => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="_default">
-                  {{ $t("settings.audioInput.systemDefault") }}
+                  {{
+                    defaultInputDeviceName
+                      ? $t("settings.audioInput.systemDefaultWithDevice", {
+                        device: defaultInputDeviceName,
+                      })
+                      : $t("settings.audioInput.systemDefault")
+                  }}
                 </SelectItem>
                 <SelectItem
                   v-for="device in audioInputDeviceList"
@@ -1343,6 +1609,23 @@ onBeforeUnmount(() => {
             >
               <RefreshCw class="h-4 w-4" :class="{ 'animate-spin': isRefreshingDeviceList }" />
             </Button>
+          </div>
+        </div>
+        <div
+          v-if="isPreviewActive"
+          role="meter"
+          :aria-valuenow="Math.round(previewLevel * 100)"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-label="$t('settings.audioInput.volumePreview')"
+          class="flex items-center gap-2 h-5"
+        >
+          <Mic class="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          <div class="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+            <div
+              class="h-full rounded-full bg-primary transition-[width] duration-75"
+              :style="{ width: `${Math.round(previewLevel * 100)}%` }"
+            />
           </div>
         </div>
         <transition name="feedback-fade">

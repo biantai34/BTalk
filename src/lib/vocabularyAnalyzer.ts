@@ -1,7 +1,13 @@
 import { fetch } from "@tauri-apps/plugin-http";
 import { DEFAULT_LLM_MODEL_ID } from "./modelRegistry";
-
-const GROQ_CHAT_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+import {
+  buildFetchParams,
+  parseProviderResponse,
+  getProviderIdForModel,
+  getProviderTimeout,
+  type LlmChatRequest,
+  type LlmUsageData,
+} from "./llmProvider";
 
 const SYSTEM_PROMPT = `你是語音轉錄字典助手。
 比較 <original> 和 <corrected>，找出語音辨識寫錯、使用者改正的詞彙。
@@ -29,41 +35,15 @@ export interface ApiUsageInfo {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
-  promptTimeMs: number;
-  completionTimeMs: number;
-  totalTimeMs: number;
+  promptTimeMs?: number;
+  completionTimeMs?: number;
+  totalTimeMs?: number;
 }
 
 export interface VocabularyAnalysisResult {
   suggestedTermList: string[];
   usage: ApiUsageInfo | null;
   rawResponse: string;
-}
-
-interface GroqChatUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-  prompt_time: number;
-  completion_time: number;
-  total_time: number;
-}
-
-interface GroqChatResponse {
-  choices: { message: { content: string } }[];
-  usage?: GroqChatUsage;
-}
-
-function parseUsage(usage?: GroqChatUsage): ApiUsageInfo | null {
-  if (!usage) return null;
-  return {
-    promptTokens: usage.prompt_tokens,
-    completionTokens: usage.completion_tokens,
-    totalTokens: usage.total_tokens,
-    promptTimeMs: Math.round(usage.prompt_time * 1000),
-    completionTimeMs: Math.round(usage.completion_time * 1000),
-    totalTimeMs: Math.round(usage.total_time * 1000),
-  };
 }
 
 const MIN_CHINESE_CHAR_COUNT = 2;
@@ -109,14 +89,29 @@ function parseSuggestedTermList(content: string): string[] {
   return [];
 }
 
+function convertUsage(usage: LlmUsageData | null): ApiUsageInfo | null {
+  if (!usage) return null;
+  return {
+    promptTokens: usage.promptTokens,
+    completionTokens: usage.completionTokens,
+    totalTokens: usage.totalTokens,
+    promptTimeMs: usage.promptTimeMs,
+    completionTimeMs: usage.completionTimeMs,
+    totalTimeMs: usage.totalTimeMs,
+  };
+}
+
 export async function analyzeCorrections(
   pastedText: string,
   fieldText: string,
   apiKey: string,
   options?: { modelId?: string },
 ): Promise<VocabularyAnalysisResult> {
-  const body = JSON.stringify({
-    model: options?.modelId ?? DEFAULT_LLM_MODEL_ID,
+  const modelId = options?.modelId ?? DEFAULT_LLM_MODEL_ID;
+  const providerId = getProviderIdForModel(modelId);
+
+  const request: LlmChatRequest = {
+    model: modelId,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {
@@ -125,17 +120,20 @@ export async function analyzeCorrections(
       },
     ],
     temperature: 0,
-    max_tokens: 256,
-  });
+    maxTokens: 256,
+  };
 
-  const response = await fetch(GROQ_CHAT_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body,
-  });
+  const { url, init } = buildFetchParams(providerId, request, apiKey);
+
+  const timeoutMs = getProviderTimeout(providerId);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let response: Awaited<ReturnType<typeof fetch>>;
+  try {
+    response = await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let errorBody = "";
@@ -149,15 +147,14 @@ export async function analyzeCorrections(
     );
   }
 
-  const data = (await response.json()) as GroqChatResponse;
-  const usage = parseUsage(data.usage);
+  const json = await response.json();
+  const result = parseProviderResponse(providerId, json);
+  const usage = convertUsage(result.usage);
 
-  if (!data.choices || data.choices.length === 0) {
+  if (!result.text) {
     return { suggestedTermList: [], usage, rawResponse: "" };
   }
 
-  const content = data.choices[0].message.content?.trim() ?? "";
-  const suggestedTermList = parseSuggestedTermList(content);
-
-  return { suggestedTermList, usage, rawResponse: content };
+  const suggestedTermList = parseSuggestedTermList(result.text);
+  return { suggestedTermList, usage, rawResponse: result.text };
 }

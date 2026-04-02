@@ -15,7 +15,13 @@ export interface CustomTriggerKey {
   custom: { keycode: number };
 }
 
-export type TriggerKey = PresetTriggerKey | CustomTriggerKey;
+export type ModifierFlag = "command" | "control" | "option" | "shift" | "fn";
+
+export interface ComboTriggerKey {
+  combo: { modifiers: ModifierFlag[]; keycode: number };
+}
+
+export type TriggerKey = PresetTriggerKey | CustomTriggerKey | ComboTriggerKey;
 
 export function isPresetTriggerKey(key: TriggerKey): key is PresetTriggerKey {
   return typeof key === "string";
@@ -23,6 +29,10 @@ export function isPresetTriggerKey(key: TriggerKey): key is PresetTriggerKey {
 
 export function isCustomTriggerKey(key: TriggerKey): key is CustomTriggerKey {
   return typeof key === "object" && key !== null && "custom" in key;
+}
+
+export function isComboTriggerKey(key: TriggerKey): key is ComboTriggerKey {
+  return typeof key === "object" && key !== null && "combo" in key;
 }
 
 export interface HotkeyConfig {
