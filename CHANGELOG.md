@@ -2,6 +2,14 @@
 
 SayIt 版本更新紀錄。
 
+## [0.9.4] - 2026-04-02
+
+### Changed
+
+- 同步上游 SayIt `v0.9.3` 功能到 BTalk fork
+- 保留 BTalk 品牌、GitHub release endpoint、Tauri updater pubkey 與無 Apple code signing 設定
+- 發佈版本改由 BTalk 自己的 release 流程繼續往前
+
 ## [0.9.3] - 2026-03-28
 
 ### Fixed
